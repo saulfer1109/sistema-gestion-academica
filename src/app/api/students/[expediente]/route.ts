@@ -1,83 +1,97 @@
-// src/app/api/students/[expediente]/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@/generated/prisma';
+import { NextRequest, NextResponse } from "next/server";
+import { pool } from "@/app/lib/db"; // Ajusta la ruta si tu db.ts está en otro lugar
 
-// Inicializamos Prisma con singleton
-let prisma: PrismaClient;
+// 🔹 Tipos
+interface StudentRow {
+  id: number;
+  nombre: string;
+  apellido_paterno: string;
+  apellido_materno: string;
+  correo: string;
+}
 
-if ((globalThis as any).prisma) {
-  prisma = (globalThis as any).prisma;
-} else {
-  prisma = new PrismaClient();
-  (globalThis as any).prisma = prisma;
+interface KardexRow {
+  id: number;
+  alumno_id: number;
+  materia_id: number;
+  periodo_id: number;
+  calificacion: string;
+  estatus: "ACREDITADA" | "REPROBADA";
+  promedio_kardex: number;
+  promedio_sem_act: number;
+}
+
+interface AcademicRecord {
+  semester: string;
+  subject: string;
+  grade: number;
+  status: "Aprobada" | "Reprobada";
+}
+
+interface StudentData {
+  name: string;
+  expediente: string;
+  currentGroup: string;
+  email: string;
+  records: AcademicRecord[];
 }
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { expediente: string | string[] } }
+  req: NextRequest,
+  context: { params: Promise<{ expediente: string }> }
 ) {
   try {
-    const expediente = Array.isArray(params.expediente)
-      ? params.expediente[0]
-      : params.expediente;
+    const { expediente } = await context.params;
 
-    console.log('Buscando alumno con expediente (entrada):', expediente);
-
-    // Buscar flexible: con y sin "EXP"
-    const student = await prisma.alumno.findFirst({
-      where: {
-        OR: [
-          { expediente }, // lo que el usuario pasó
-          {
-            expediente: expediente.startsWith('EXP')
-              ? expediente.slice(3) // si ya trae "EXP", probar sin prefijo
-              : `EXP${expediente}`, // si no trae "EXP", probar con prefijo
-          },
-        ],
-      },
-      include: {
-        calificacion: {
-          include: {
-            grupo: {
-              include: {
-                materia: true,
-                periodo: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!student) {
-      console.log('Alumno no encontrado en la base de datos');
-      return NextResponse.json({ error: 'Alumno no encontrado' }, { status: 404 });
+    if (!expediente) {
+      return NextResponse.json({ error: "Expediente no proporcionado" }, { status: 400 });
     }
 
-    console.log('Alumno encontrado:', student);
+    const expedienteNum = parseInt(expediente, 10);
+    if (isNaN(expedienteNum)) {
+      return NextResponse.json({ error: "Expediente inválido" }, { status: 400 });
+    }
 
-    // Transformar datos al formato que necesitas
-    const formattedStudent = {
-      name: `${student.nombre} ${student.apellido_paterno} ${
-        student.apellido_materno || ''
-      }`.trim(),
-      expediente: student.expediente,
-      currentGroup: 'N/A', // Ajusta si quieres mostrar su grupo actual
+    // 🔹 Traer alumno
+    const studentResult = await pool.query(
+      `SELECT id, nombre, apellido_paterno, apellido_materno, correo
+       FROM alumno
+       WHERE expediente = $1`,
+      [expedienteNum]
+    );
+
+    const studentRows: StudentRow[] = studentResult.rows;
+    if (!studentRows.length) {
+      return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
+    }
+    const student = studentRows[0];
+
+    // 🔹 Traer calificaciones del kardex
+    const kardexResult = await pool.query(
+      `SELECT * FROM kardex WHERE alumno_id = $1`,
+      [student.id]
+    );
+    const kardexRows: KardexRow[] = kardexResult.rows;
+
+    // 🔹 Transformar datos para frontend
+    const records: AcademicRecord[] = kardexRows.map((r: KardexRow) => ({
+      semester: `Semestre ${r.periodo_id}`,
+      subject: `Materia ${r.materia_id}`,
+      grade: parseFloat(r.calificacion),
+      status: r.estatus === "ACREDITADA" ? "Aprobada" : "Reprobada",
+    }));
+
+    const studentData: StudentData = {
+      name: `${student.nombre} ${student.apellido_paterno} ${student.apellido_materno}`,
+      expediente,
+      currentGroup: "Grupo X", // Ajusta si tienes info real
       email: student.correo,
-      records: student.calificacion.map((calif: any) => ({
-        semester: calif.grupo.periodo.etiqueta,
-        subject: calif.grupo.materia.nombre,
-        grade: parseFloat(calif.calificacion.toString()),
-        status:
-          parseFloat(calif.calificacion.toString()) >= 6.0
-            ? 'Aprobada'
-            : 'Reprobada',
-      })),
+      records,
     };
 
-    return NextResponse.json(formattedStudent);
-  } catch (error) {
-    console.error('Error en /api/students/[expediente]:', error);
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
+    return NextResponse.json(studentData);
+  } catch (err) {
+    console.error("Error en GET /api/students/[expediente]:", err);
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 }

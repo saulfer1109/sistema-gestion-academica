@@ -1,4 +1,3 @@
-// src/app/alumno/[expediente]/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -6,7 +5,6 @@ import { useParams, useRouter } from 'next/navigation';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import Link from 'next/link';
 
-// Tipos de datos
 interface AcademicRecord {
   semester: string;
   subject: string;
@@ -22,7 +20,6 @@ interface StudentData {
   records: AcademicRecord[];
 }
 
-// Componente de carga
 const SkeletonLoader = () => (
   <div className="animate-pulse space-y-4">
     <div className="h-8 bg-gray-200 rounded w-3/4"></div>
@@ -31,54 +28,47 @@ const SkeletonLoader = () => (
   </div>
 );
 
-// Colores para el gráfico de pastel
 const COLORS = ['#00C49F', '#FF8042'];
 
 export default function StudentProfilePage() {
   const params = useParams();
   const router = useRouter();
-  const { expediente } = params;
+  const expedienteParam = Array.isArray(params?.expediente) ? params.expediente[0] : params?.expediente;
+
   const [studentData, setStudentData] = useState<StudentData | null>(null);
   const [selectedSemester, setSelectedSemester] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-// Llamada REAL a la API (usamos el valor tal cual)
-useEffect(() => {
-  const fetchStudentData = async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      // Aseguramos que 'expediente' sea un string
-      const expedienteStr = Array.isArray(expediente) ? expediente[0] : expediente;
-
-      if (!expedienteStr) {
-        throw new Error('Número de expediente no válido');
+  useEffect(() => {
+    const fetchStudentData = async () => {
+      if (!expedienteParam) {
+        setError('Número de expediente no válido');
+        setIsLoading(false);
+        return;
       }
 
-      const res = await fetch(`/api/students/${expedienteStr}`);
-      
-      if (!res.ok) {
-        throw new Error('Alumno no encontrado');
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const res = await fetch(`/api/students/${expedienteParam}`);
+        if (!res.ok) throw new Error('Alumno no encontrado');
+
+        const data = await res.json() as StudentData;
+        setStudentData(data);
+
+      } catch (err: any) {
+        setError(err.message || 'No se pudo cargar la información del alumno.');
+        setStudentData(null);
+      } finally {
+        setIsLoading(false);
       }
+    };
 
-      const data = await res.json();
-      setStudentData(data);
-    } catch (err: any) {
-      setError(err.message || 'No se pudo cargar la información del alumno. Verifica el número de expediente.');
-      setStudentData(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  if (expediente) {
     fetchStudentData();
-  }
-}, [expediente]);
+  }, [expedienteParam]);
 
-  // Función para calcular el promedio del semestre seleccionado
   const getFilteredData = () => {
     if (!studentData) return [];
     return selectedSemester === 'all'
@@ -88,7 +78,7 @@ useEffect(() => {
 
   const calculateAverage = () => {
     const filtered = getFilteredData();
-    if (filtered.length === 0) return 0;
+    if (!filtered.length) return 0;
     const sum = filtered.reduce((acc, record) => acc + record.grade, 0);
     return parseFloat((sum / filtered.length).toFixed(2));
   };
@@ -104,25 +94,17 @@ useEffect(() => {
   };
 
   const getUniqueSemesters = () => {
-    if (!studentData) return [];
+    if (!studentData) return ['all'];
     const semesters = [...new Set(studentData.records.map(r => r.semester))];
     return ['all', ...semesters];
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 p-6">
-        <div className="max-w-4xl mx-auto">
-          <SkeletonLoader />
-        </div>
-      </div>
-    );
-  }
+  if (isLoading) return <div className="min-h-screen bg-gray-50 p-6"><SkeletonLoader /></div>;
 
   if (error || !studentData) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
-        <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-8 text-center">
+      <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+        <div className="max-w-md bg-white rounded-lg shadow-md p-8 text-center">
           <h2 className="text-xl font-bold text-red-600 mb-4">Error</h2>
           <p className="text-gray-700 mb-6">{error}</p>
           <button
@@ -140,24 +122,20 @@ useEffect(() => {
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-4xl mx-auto">
         {/* Encabezado */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <div className="flex justify-between items-start">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-800">{studentData.name}</h1>
-              <p className="text-lg text-gray-600">Expediente: {studentData.expediente}</p>
-              <p className="text-md text-gray-500">Grupo: {studentData.currentGroup} | Correo: {studentData.email}</p>
-            </div>
-            <Link href="/calificaciones/consultar-calificaciones" className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-md transition">
-              ← Nueva Búsqueda
-            </Link>
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6 flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800">{studentData.name}</h1>
+            <p className="text-lg text-gray-600">Expediente: {studentData.expediente}</p>
+            <p className="text-md text-gray-500">Grupo: {studentData.currentGroup} | Correo: {studentData.email}</p>
           </div>
+          <Link href="/calificaciones/consultar-calificaciones" className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-md transition">
+            ← Nueva Búsqueda
+          </Link>
         </div>
 
         {/* Selector de Semestre */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <label htmlFor="semester" className="block text-sm font-medium text-gray-700 mb-2">
-            Filtrar por Semestre
-          </label>
+          <label htmlFor="semester" className="block text-sm font-medium text-gray-700 mb-2">Filtrar por Semestre</label>
           <select
             id="semester"
             value={selectedSemester}
@@ -180,54 +158,49 @@ useEffect(() => {
           </div>
           <div className="bg-green-50 p-6 rounded-lg text-center">
             <h3 className="text-lg font-semibold text-green-800">Materias Aprobadas</h3>
-            <p className="text-3xl font-bold text-green-600 mt-2">{countByStatus()[0].value}</p>
+            <p className="text-3xl font-bold text-green-600 mt-2">{countByStatus()[0]?.value || 0}</p>
           </div>
           <div className="bg-red-50 p-6 rounded-lg text-center">
             <h3 className="text-lg font-semibold text-red-800">Materias Reprobadas</h3>
-            <p className="text-3xl font-bold text-red-600 mt-2">{countByStatus()[1].value}</p>
+            <p className="text-3xl font-bold text-red-600 mt-2">{countByStatus()[1]?.value || 0}</p>
           </div>
         </div>
 
-        {/* Gráfico de Barras: Calificaciones por Materia */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+        {/* Gráficos */}
+        <div className="bg-white rounded-lg shadow-md p-6 mb-8 h-80">
           <h2 className="text-xl font-bold text-gray-800 mb-4">Calificaciones por Materia</h2>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={getFilteredData()}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="subject" />
-                <YAxis domain={[0, 10]} />
-                <Tooltip />
-                <Bar dataKey="grade" fill="#3B82F6" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={getFilteredData()}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="subject" />
+              <YAxis domain={[0, 100]} /> {/* Calificación en 0-100 */}
+              <Tooltip />
+              <Bar dataKey="grade" fill="#3B82F6" />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
 
-        {/* Gráfico de Pastel: Aprobadas vs Reprobadas */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white rounded-lg shadow-md p-6 h-80">
           <h2 className="text-xl font-bold text-gray-800 mb-4">Distribución de Materias</h2>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={countByStatus()}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${((percent as number) * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {countByStatus().map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={countByStatus()}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, percent }) => `${name} ${((percent as number) * 100).toFixed(0)}%`}
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {countByStatus().map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
         </div>
       </div>
     </div>
