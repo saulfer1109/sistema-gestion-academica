@@ -127,8 +127,8 @@ export default function RootLayout({
                 </li>
                 <li>
                   <a
-                    href="#"
-                    className="px-3 py-2 rounded transition cursor-not-allowed opacity-70"
+                    href="/reportes"
+                    className="px-3 py-2 rounded transition"
                   >
                     Reportes Académicos
                   </a>
