@@ -100,7 +100,7 @@ export default function RootLayout({
                     <ul className="py-1">
                       <li>
                         <a
-                          href="#"
+                          href="/calificaciones/subir-calificaciones"
                           className="block px-4 py-2 text-gray-700 hover:bg-gray-100 cursor-not-allowed opacity-50"
                         >
                           Subir calificaciones vía Excel
