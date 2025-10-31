@@ -20,6 +20,7 @@ interface StudentData {
   records: AcademicRecord[];
 }
 
+
 const SkeletonLoader = () => (
   <div className="animate-pulse space-y-4">
     <div className="h-8 bg-gray-200 rounded w-3/4"></div>
@@ -191,7 +192,7 @@ export default function StudentProfilePage() {
                 labelLine={false}
                 label={({ name, percent }) => `${name} ${((percent as number) * 100).toFixed(0)}%`}
                 outerRadius={80}
-                fill="#8884d8"
+                fill="#010008ff"
                 dataKey="value"
               >
                 {countByStatus().map((entry, index) => (
