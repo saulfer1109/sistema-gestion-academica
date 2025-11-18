@@ -83,8 +83,8 @@ export default function RootLayout({
               <ul className="flex space-x-8 text-sm font-medium">
                 <li>
                   <a
-                    href="#"
-                    className="px-3 py-2 rounded transition cursor-not-allowed opacity-70"
+                    href="/"
+                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100 font-medium"
                   >
                     Inicio
                   </a>
@@ -92,7 +92,7 @@ export default function RootLayout({
                 <li className="relative group">
                   <a
                     href="#"
-                    className="px-3 py-2 rounded transition cursor-not-allowed opacity-70"
+                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100 font-medium"
                   >
                     Calificaciones
                   </a>
@@ -100,8 +100,8 @@ export default function RootLayout({
                     <ul className="py-1">
                       <li>
                         <a
-                          href="#"
-                          className="block px-4 py-2 text-gray-700 hover:bg-gray-100 cursor-not-allowed opacity-50"
+                          href="/calificaciones/subir-calificaciones"
+                          className="block px-4 py-2 text-gray-700 hover:bg-gray-100 font-medium"
                         >
                           Subir calificaciones vía Excel
                         </a>
@@ -120,7 +120,7 @@ export default function RootLayout({
                 <li>
                   <a
                     href="#"
-                    className="px-3 py-2 rounded transition cursor-not-allowed opacity-70"
+                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100 font-medium"
                   >
                     Alumnos
                   </a>
@@ -128,15 +128,15 @@ export default function RootLayout({
                 <li>
                   <a
                     href="/reportes"
-                    className="px-3 py-2 rounded transition"
+                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100 font-medium"
                   >
                     Reportes Académicos
                   </a>
                 </li>
                 <li>
                   <a
-                    href="#"
-                    className="px-3 py-2 rounded transition cursor-not-allowed opacity-70"
+                    href="/alertas-faltas"
+                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100 font-medium"
                   >
                     Alertas por Faltas
                   </a>
@@ -144,7 +144,7 @@ export default function RootLayout({
                 <li>
                   <a
                     href="#"
-                    className="px-3 py-2 rounded transition cursor-not-allowed opacity-70"
+                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100 font-medium"
                   >
                     Desempeño
                   </a>

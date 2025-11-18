@@ -15,7 +15,7 @@ export default function Home() {
               <input type="checkbox" checked className="mr-2" />
               Alerta por faltas
             </label>
-          </div>
+          </div> 
         </div>
 
         <div className="mt-8 bg-white rounded-lg shadow-md p-6">
