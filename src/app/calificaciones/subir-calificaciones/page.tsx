@@ -101,7 +101,7 @@ export default function UploadGradesPage() {
                 
                 <div className="flex justify-between items-center mb-6 border-b pb-4">
                     <h1 className="text-3xl font-bold text-gray-800">
-                        PR7. Subir Calificaciones vía Excel
+                        Subir Calificaciones vía Excel
                     </h1>
                     <Link href="/" className="text-blue-600 hover:text-blue-800 transition">
                         ← Volver al inicio
