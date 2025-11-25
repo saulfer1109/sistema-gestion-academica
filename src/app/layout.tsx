@@ -1,160 +1,226 @@
-// src/app/layout.tsx
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
-import Image from 'next/image';
-import './globals.css';
+"use client";
 
-const inter = Inter({ subsets: ['latin'] });
+import { useState, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { Inter, Roboto } from "next/font/google";
+import Image from "next/image";
+import Link from "next/link";
+import "./globals.css";
+import NavBar from "../components/NavBar";
 
-export const metadata: Metadata = {
-  title: 'Sistema de Gestión Académica - Universidad de Sonora',
-  description: 'Gestión académica para profesores',
-};
+// --- Definiciones de fuentes ---
+const inter = Inter({ subsets: ["latin"] });
+const roboto = Roboto({ subsets: ["latin"], weight: ["400", "500"] });
+
+// --- Paleta de colores ---
+const AZUL_MARINO = "#16469B";
+const DORADO = "#E6B10F";
+const FONDO = "#EDE9FF"; 
+
+// Definición de tipo para el usuario
+interface UserData {
+  nombre: string;
+  email: string;
+}
 
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [userData, setUserData] = useState<UserData | null>(null);
+  
+  const pathname = usePathname();
+  const router = useRouter();
+
+  // Rutas sin NavBar
+  const ROUTES_WITHOUT_NAVBAR = ['/', '/login', '/registro', '/recuperar-contrasena'];
+  const shouldRenderNavbar = !ROUTES_WITHOUT_NAVBAR.includes(pathname);
+
+  // 1️⃣ Cargar datos del usuario al montar
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        try {
+          setUserData(JSON.parse(storedUser));
+        } catch (e) {
+          console.error("Error leyendo usuario", e);
+        }
+      }
+    }
+  }, []);
+
+  // 2️⃣ Logout logic
+  const handleLogout = () => {
+    if (typeof window !== 'undefined') {
+        localStorage.removeItem('user');
+        router.push('/');
+    }
+  };
+
   return (
     <html lang="es">
       <body className={inter.className}>
-        <div className="min-h-screen bg-gray-50">
-          {/* Header */}
-          <header className="bg-white border-b border-blue-900 shadow-sm">
-            <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                {/* Logo en lugar del circulo azul con US */}
-                <div className="w-16 h-16 relative">
-                  <Image
-                    src="/logounison.png" 
-                    alt="Logo Universidad de Sonora"
-                    fill
-                    className="object-contain rounded-full"
-                  />
-                </div>
+        <div
+          className="min-h-screen flex justify-center py-10"
+          style={{ backgroundColor: FONDO }}
+        >
+          <div className="bg-white max-w-[1200px] w-full mx-auto rounded-xl shadow-lg overflow-hidden min-h-[800px]">
+            
+            {/* Franja superior azul */}
+            <div
+              style={{ backgroundColor: AZUL_MARINO }}
+              className="h-[8px] w-full"
+            />
 
-                <div>
-                  <h1 className="text-xl font-bold text-blue-900">UNIVERSIDAD DE SONORA</h1>
-                  <p className="text-sm text-gray-600">El Saber de mis Hijos hará mi Grandeza</p>
-                </div>
-              </div>
+            {shouldRenderNavbar && (
+              <>
+                {/* --- HEADER BLANCO (CON ICONO DE USUARIO) --- */}
+                <header className="bg-white shadow-sm relative z-20">
+                  <div className="max-w-7xl mx-auto px-8 py-6 flex items-center justify-between">
+                    
+                    {/* Logo + Textos */}
+                    <div className="flex items-center gap-6">
+                      <div className="w-[80px] h-[80px] relative">
+                        <Image
+                          src="/logounison.png"
+                          alt="Logo Universidad de Sonora"
+                          fill
+                          className="object-contain"
+                          priority
+                        />
+                      </div>
 
-              <div className="flex items-center space-x-4">
-                <button className="p-2 rounded-full hover:bg-gray-100 transition">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-6 w-6 text-gray-600"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 17h4l-4-4h-4l4-4H9a2 2 0 00-2 2v4a2 2 0 002 2h4z"
-                    />
-                  </svg>
-                </button>
-                <button className="p-2 rounded-full hover:bg-gray-100 transition">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-6 w-6 text-gray-600"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </header>
-
-          {/* Main Navigation */}
-          <nav className="bg-yellow-500 text-white">
-            <div className="max-w-7xl mx-auto px-4">
-              <ul className="flex space-x-8 text-sm font-medium">
-                <li>
-                  <a
-                    href="/"
-                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100 font-medium"
-                  >
-                    Inicio
-                  </a>
-                </li>
-                <li className="relative group">
-                  <a
-                    href="#"
-                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100 font-medium"
-                  >
-                    Calificaciones
-                  </a>
-                  <div className="absolute left-0 top-full mt-1 w-64 bg-white border rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
-                    <ul className="py-1">
-                      <li>
-                        <a
-                          href="/calificaciones/subir-calificaciones"
-                          className="block px-4 py-2 text-gray-700 hover:bg-gray-100 font-medium"
+                      <div className="leading-snug">
+                        <h1
+                          className="uppercase tracking-wide font-semibold"
+                          style={{
+                            color: AZUL_MARINO,
+                            fontSize: "24px",
+                            lineHeight: "1.2",
+                          }}
                         >
-                          Subir calificaciones vía Excel
-                        </a>
-                      </li>
-                      <li>
-                        <a
-                          href="/calificaciones/consultar-calificaciones"
-                          className="block px-4 py-2 text-gray-700 hover:bg-gray-100 font-medium"
+                          UNIVERSIDAD DE SONORA
+                        </h1>
+                        <p
+                          className="font-serif italic text-[14px]"
+                          style={{ color: AZUL_MARINO }}
                         >
-                          Consultar calificaciones
-                        </a>
-                      </li>
-                    </ul>
+                          El Saber de mis Hijos hará mi Grandeza
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Íconos Derecha */}
+                    <div className="flex items-center gap-6">
+                      
+                      {/* Notificaciones */}
+                      <button className="p-2 rounded-full hover:bg-gray-100 transition text-[#16469B]">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                          <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+                        </svg>
+                      </button>
+
+                      {/* --- PERFIL --- */}
+                      <div 
+                        className="relative"
+                        tabIndex={0}
+                        onBlur={(e) => {
+                            if (!e.currentTarget.contains(e.relatedTarget)) {
+                                setTimeout(() => setIsProfileOpen(false), 150);
+                            }
+                        }}
+                      >
+                        <button
+                          onClick={() => setIsProfileOpen(!isProfileOpen)}
+                          className={`p-2 rounded-full transition text-[#16469B] ${isProfileOpen ? "bg-gray-100" : "hover:bg-gray-100"}`}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                            <circle cx="12" cy="7" r="4" />
+                          </svg>
+                        </button>
+
+                        {/* ⬇️ DROPDOWN DE PERFIL PERSONALIZADO */}
+                        {isProfileOpen && (
+                          <div className="absolute right-0 mt-2 w-[380px] bg-white rounded-lg shadow-2xl z-50 border border-gray-200 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                            <div className="flex">
+                                <div className="flex-1">
+                                    {/* Info Superior */}
+                                    <div className="p-5 pb-3">
+                                        <div className="flex gap-4 items-start">
+                                            {/* Avatar Dorado */}
+                                            <div className="mt-1 w-10 h-10 rounded-full bg-[#E6B10F] flex-shrink-0 border-2 border-white shadow-sm"></div>
+                                            
+                                            {/* Textos */}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex justify-between items-start">
+                                                    <p className="font-bold text-[#16469B] text-base leading-tight">
+                                                        Prof. {userData?.nombre || "Usuario"}
+                                                    </p>
+                                                    {/* Botón Cerrar Sesión */}
+                                                    <button 
+                                                        onClick={handleLogout}
+                                                        className="text-red-600 text-xs hover:underline font-medium whitespace-nowrap ml-3 mt-0.5"
+                                                    >
+                                                        Cerrar Sesión
+                                                    </button>
+                                                </div>
+                                                
+                                                <p className="text-xs text-gray-600 mt-1 font-medium">
+                                                    {userData?.email || "correo@unison.mx"}
+                                                </p>
+                                                <p className="text-xs text-gray-500 mt-0.5">
+                                                    Grupo (clave)
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Separador */}
+                                    <div className="h-[1px] bg-[#16469B] mx-5 opacity-20"></div>
+
+                                    {/* Info Inferior / Configuración */}
+                                    <div className="px-5 py-4 bg-white">
+                                        <p className="text-xs text-gray-500 mb-3 leading-relaxed">
+                                            Maestro de tiempo completo Campus Hermosillo
+                                        </p>
+                                        
+                                        {/* ENLACE DE CONFIGURACIÓN */}
+                                        <Link 
+                                            href="/configuracion-perfil" 
+                                            className="block w-full text-left text-sm text-gray-700 hover:text-[#16469B] hover:bg-gray-50 p-2 -ml-2 rounded transition-colors font-medium"
+                                            onClick={() => setIsProfileOpen(false)}
+                                        >
+                                            Configuración de perfil
+                                        </Link>
+                                    </div>
+                                </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </li>
-                <li>
-                  <a
-                    href="/alumno-grupo"
-                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100 font-medium"
-                  >
-                    Alumnos
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="/reportes"
-                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100 font-medium"
-                  >
-                    Reportes Académicos
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="/alertas-faltas"
-                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100 font-medium"
-                  >
-                    Alertas por Faltas
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="#"
-                    className="block px-4 py-2 text-gray-700 hover:bg-gray-100 font-medium"
-                  >
-                    Desempeño
-                  </a>
-                </li>
-              </ul>
-            </div>
-          </nav>
+                </header>
 
-          {/* Contenido de la página */}
-          <main className="max-w-7xl mx-auto px-4 py-6">{children}</main>
+                {/* --- NAVBAR AMARILLA --- */}
+                <NavBar
+                  className={`${roboto.className} text-white h-16 flex items-center shadow-sm font-medium text-[17px]`}
+                  azul={AZUL_MARINO}
+                  dorado={DORADO}
+                />
+              </>
+            )}
+
+            {/* Contenido dinámico */}
+            <main className="p-8">
+              {children}
+            </main>
+          </div>
         </div>
       </body>
     </html>
