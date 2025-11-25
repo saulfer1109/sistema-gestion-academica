@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 // Importaciones de componentes de UI
 import ImageAdjustmentPage from "../../components/ui/ImageAdjustmentPage";
 import ImageUploadAndAdjustModal from "../../components/ui/ImageUploadAndAdjustModal";
@@ -18,9 +18,14 @@ const SectionTitle = ({ title }: { title: string }) => (
 const AZUL_MARINO = "#16469B";
 const GRIS_CLARO = "#D8D8D8";
 
-// Simulación de los datos del perfil del usuario
+// Estado inicial por defecto (mientras carga o si no hay datos)
 const InitialUserProfile = {
-    phone: "6622399230",
+    nombre: "Cargando...",
+    clave: "---",
+    email: "---",
+    puesto: "Maestro de tiempo completo", // Dato simulado (no viene en el login básico)
+    campus: "Hermosillo", // Dato simulado
+    phone: "6622000000", // Dato editable
 };
 
 export default function PerfilPage() {
@@ -29,21 +34,53 @@ export default function PerfilPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPhotoPending, setIsPhotoPending] = useState(false);
 
-  // 🟢 ESTADOS DEL MODAL DE ÉXITO (NUEVOS)
+  // 🟢 ESTADOS DEL MODAL DE ÉXITO
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
 
+  // 👤 ESTADO DEL PERFIL (Datos del usuario)
   const [userProfile, setUserProfile] = useState(InitialUserProfile);
 
   // Edición de Teléfono
   const [isEditingPhone, setIsEditingPhone] = useState(false);
-  const [draftPhone, setDraftPhone] = useState(userProfile.phone);
+  const [draftPhone, setDraftPhone] = useState(""); // Se inicializa en el useEffect
 
   // 🔒 Edición de Contraseña
   const [isEditingPassword, setIsEditingPassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  // 1️⃣ EFECTO: CARGAR DATOS DEL USUARIO LOGUEADO
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        try {
+          const userData = JSON.parse(storedUser);
+          // Actualizamos el perfil con los datos reales de la sesión
+          setUserProfile((prev) => ({
+            ...prev,
+            nombre: userData.nombre || "Usuario Invitado",
+            email: userData.email || "correo@unison.mx",
+            // Si el login devolviera 'profesorId' o 'clave', úsalo aquí:
+            clave: userData.profesorId ? String(userData.profesorId) : "889977", 
+            phone: prev.phone // Mantenemos el teléfono local o mock por ahora
+          }));
+          // Inicializamos el borrador del teléfono
+          setDraftPhone(InitialUserProfile.phone);
+        } catch (e) {
+          console.error("Error al leer usuario:", e);
+        }
+      }
+    }
+  }, []);
+
+  // Actualizar draftPhone cuando userProfile cambie (por la carga inicial)
+  useEffect(() => {
+      setDraftPhone(userProfile.phone);
+  }, [userProfile.phone]);
+
 
   // Lógica para detectar si hay cambios sin guardar
   const hasPhoneChanged = draftPhone !== userProfile.phone;
@@ -60,23 +97,16 @@ export default function PerfilPage() {
   // --- MANEJO DE LA FOTO DE PERFIL ---
 
   const handleFileSelected = (file: File) => {
-    // 1. Guarda el archivo temporalmente (esto dispara el renderizado de ImageAdjustmentPage)
     setTempFile(file);
-    // 2. Cierra el modal de pre-carga
     setIsModalOpen(false);
   };
 
   const handleSavePhoto = (finalFile: File) => {
-    console.log("Foto final ajustada y lista para subir:", finalFile);
-    // 1. Elimina la vista de ajuste
     setTempFile(null);
-    // 2. Marca que hay una foto pendiente de confirmar con el botón global
     setIsPhotoPending(true);
-    console.log(`Simulación: La foto está lista para ser subida con el botón 'Confirmar'.`);
   };
 
   const handleCancelAdjustment = () => {
-    // Cancela la foto y regresa a la vista de perfil
     setTempFile(null);
   };
 
@@ -87,16 +117,11 @@ export default function PerfilPage() {
     e.preventDefault();
     if (!isPasswordFormValid) return;
 
-    // Simulación de API OK
-    console.log("¡Contraseña actualizada con éxito! (Simulación de API OK)");
-
-    // 1. Simulación de cierre y limpieza del formulario
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
     setIsEditingPassword(false);
 
-    // 2. Abrir Modal de Éxito con mensaje de contraseña (NUEVO)
     setSuccessMessage("La contraseña ha sido actualizada con éxito.");
     setIsSuccessModalOpen(true);
   };
@@ -107,48 +132,33 @@ export default function PerfilPage() {
 
     if (hasPhoneChanged) {
         setUserProfile(prev => ({ ...prev, phone: draftPhone }));
-        console.log(`Teléfono actualizado a: ${draftPhone} (Simulación de API OK)`);
     }
 
     if (isPhotoPending) {
-        // En una app real: Subir la imagen y actualizar photoUrl con la nueva URL
-        console.log("Subiendo la nueva foto de perfil... (Simulación de API OK)");
         successMsg = "Los cambios de perfil y la foto se han guardado con éxito.";
     }
 
-    // Resetear estados de cambio (hace que hasUnsavedChanges sea FALSE)
     setIsPhotoPending(false);
     setIsEditingPhone(false);
 
-    // Abrir Modal de Éxito (NUEVO)
     setSuccessMessage(successMsg);
     setIsSuccessModalOpen(true);
-
-    console.log("¡Cambios guardados con éxito!");
   };
 
   // Lógica de cancelar (Descartar cambios)
   const handleDiscardChanges = () => {
-    // Revertir estados de borrador al estado guardado
     setDraftPhone(userProfile.phone);
     setIsEditingPhone(false);
-
-    // Revertir estados de foto
     setIsPhotoPending(false);
     setTempFile(null);
     setIsModalOpen(false);
-
-    // Resetear formulario de contraseña si estaba abierto
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
     setIsEditingPassword(false);
-
-    console.log("Cambios descartados.");
   };
 
-  // 🚨 RENDERIZADO CONDICIONAL 1: Si hay un archivo temporal seleccionado,
-  // mostramos la página de ajuste (Prioridad máxima)
+  // 🚨 RENDERIZADO CONDICIONAL 1: Ajuste de Imagen
   if (tempFile) {
     return (
       <ImageAdjustmentPage
@@ -163,14 +173,14 @@ export default function PerfilPage() {
   return (
     <div className="py-8 px-4 md:px-8 max-w-6xl mx-auto">
 
-      {/* ⚠️ RENDERIZADO CONDICIONAL 2: El Modal de Carga de Imagen */}
+      {/* Modal de Carga de Imagen */}
       <ImageUploadAndAdjustModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onFileSelected={handleFileSelected}
       />
 
-      {/* 💚 RENDERIZADO CONDICIONAL 3: El Modal de Éxito (NUEVO) */}
+      {/* Modal de Éxito */}
       <SuccessConfirmationModal
           isOpen={isSuccessModalOpen}
           onClose={() => setIsSuccessModalOpen(false)}
@@ -184,10 +194,9 @@ export default function PerfilPage() {
         {/* 👤 Foto de Perfil */}
         <div className="flex flex-col items-center w-full md:w-auto">
           <div
-            className="w-40 h-40 rounded-full flex items-center justify-center mb-2"
+            className="w-40 h-40 rounded-full flex items-center justify-center mb-2 shadow-md"
             style={{ backgroundColor: AZUL_MARINO }}
           >
-            {/* SVG del Ícono de Perfil Grande */}
             <svg
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
@@ -204,9 +213,8 @@ export default function PerfilPage() {
             </svg>
           </div>
 
-          {/* ✅ Botón/Enlace que abre el Modal para la foto */}
           <button
-            onClick={() => setIsModalOpen(true)} // ¡Activado de nuevo!
+            onClick={() => setIsModalOpen(true)}
             className="text-sm text-gray-600 hover:text-blue-600 transition flex items-center gap-1 mt-2"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
@@ -214,45 +222,42 @@ export default function PerfilPage() {
           </button>
         </div>
 
-        {/* 📋 Detalles de Información Personal */}
+        {/* 📋 Detalles de Información Personal (DINÁMICO) */}
         <div className="flex-grow w-full md:w-auto">
           <SectionTitle title="Información Personal" />
           <div className="space-y-1 text-gray-700 font-sans pl-2">
             <p className="font-semibold uppercase text-xs" style={{ color: AZUL_MARINO }}>Universidad de Sonora</p>
-            <p>Nombre: <span className="font-medium">Ochoa Hernandez José Luis</span></p>
-            <p>Clave: <span className="font-medium">316390</span></p>
-            <p>Correo institucional: <span className="font-medium">joseluis.ochoa@unison.mx</span></p>
-            <p>Puesto: <span className="font-medium">Maestro de tiempo completo</span></p>
-            <p>Campus: <span className="font-medium">Hermosillo</span></p>
+            
+            {/* Aquí usamos los datos del estado */}
+            <p>Nombre: <span className="font-medium">{userProfile.nombre}</span></p>
+            <p>Clave: <span className="font-medium">{userProfile.clave}</span></p>
+            <p>Correo institucional: <span className="font-medium">{userProfile.email}</span></p>
+            <p>Puesto: <span className="font-medium">{userProfile.puesto}</span></p>
+            <p>Campus: <span className="font-medium">{userProfile.campus}</span></p>
 
             {/* Campo de Teléfono Editable */}
             <div className="flex items-center gap-2">
-                {/* Icono de teléfono */}
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
                 Teléfono de trabajo:
 
                 {isEditingPhone ? (
-                    // MODO EDICIÓN
                     <>
                         <input
                             type="tel"
                             value={draftPhone}
                             onChange={(e) => setDraftPhone(e.target.value)}
-                            className={`font-medium border ${hasPhoneChanged ? 'border-yellow-500' : 'border-gray-300'} rounded px-1`}
+                            className={`font-medium border ${hasPhoneChanged ? 'border-yellow-500' : 'border-gray-300'} rounded px-1 w-32`}
                         />
-                        {/* Botones de acción para el campo de edición */}
                         {hasPhoneChanged && (
                             <button onClick={() => { setIsEditingPhone(false); setDraftPhone(userProfile.phone); }} className="text-sm text-red-500 hover:text-red-700 transition">
-                                X
+                                ✕
                             </button>
                         )}
                     </>
                 ) : (
-                    // MODO LECTURA
                     <span className={`font-medium ${hasPhoneChanged ? 'text-yellow-700' : 'text-blue-600'}`}>{userProfile.phone}</span>
                 )}
 
-                {/* Botón de editar teléfono (solo si no está editando) */}
                 {!isEditingPhone && (
                     <button onClick={() => setIsEditingPhone(true)} className="text-sm text-gray-600 hover:text-blue-600 transition flex items-center gap-1">
                         <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
@@ -270,74 +275,72 @@ export default function PerfilPage() {
       <div className="mt-8">
         <SectionTitle title="Seguridad de Cuenta" />
         <div className="space-y-2 text-gray-700 font-sans pl-2">
+            {/* La fecha podría ser también dinámica en un futuro, por ahora es estática según diseño */}
             <p className="text-sm">Última fecha/hora de inicio de sesión: <span className="font-medium">14/09/2025 a las 15:59 hrs.</span></p>
 
-            {/* Botón de editar contraseña */}
             <div className="flex flex-col">
                 <button
                     onClick={() => setIsEditingPassword(prev => !prev)}
                     className="text-sm text-gray-600 hover:text-blue-600 transition flex items-center gap-1 w-fit"
                 >
-                    {/* Icono de lápiz (editar) */}
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                     Cambiar contraseña
                 </button>
 
-                {/* 🔑 FORMULARIO DE EDICIÓN DE CONTRASEÑA (Condicional) */}
                 {isEditingPassword && (
-                    <form onSubmit={handleUpdatePassword} className="mt-4 space-y-3 p-4 max-w-lg">
-
-                        {/* Contraseña Actual */}
+                    <form onSubmit={handleUpdatePassword} className="mt-4 space-y-3 p-4 max-w-lg bg-gray-50 rounded-md border border-gray-200">
                         <div className="flex items-center">
                             <label className="w-1/3 text-sm font-medium text-gray-700">Contraseña actual:</label>
                             <input
                                 type="password"
                                 value={currentPassword}
                                 onChange={(e) => setCurrentPassword(e.target.value)}
-                                className="w-2/3 p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                                className="w-2/3 p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 text-sm"
                                 required
                             />
                         </div>
 
-                        {/* Nueva Contraseña */}
                         <div className="flex items-center">
                             <label className="w-1/3 text-sm font-medium text-gray-700">Contraseña nueva:</label>
                             <input
                                 type="password"
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
-                                className={`w-2/3 p-2 border rounded focus:ring-blue-500 ${newPassword.length > 0 && newPassword.length < 6 ? 'border-red-500' : 'border-gray-300'} focus:border-blue-500`}
+                                className={`w-2/3 p-2 border rounded text-sm focus:ring-blue-500 ${newPassword.length > 0 && newPassword.length < 6 ? 'border-red-500' : 'border-gray-300'} focus:border-blue-500`}
                                 required
                                 minLength={6}
                             />
                         </div>
 
-                        {/* Confirmar Contraseña */}
                         <div className="flex items-center">
-                            <label className="w-1/3 text-sm font-medium text-gray-700">Contraseña nueva:</label> {/* Se repite el label por diseño de la imagen original */}
+                            <label className="w-1/3 text-sm font-medium text-gray-700">Confirmar:</label>
                             <input
                                 type="password"
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
-                                className={`w-2/3 p-2 border rounded focus:ring-blue-500 ${confirmPassword && newPassword !== confirmPassword ? 'border-red-500' : 'border-gray-300'} focus:border-blue-500`}
+                                className={`w-2/3 p-2 border rounded text-sm focus:ring-blue-500 ${confirmPassword && newPassword !== confirmPassword ? 'border-red-500' : 'border-gray-300'} focus:border-blue-500`}
                                 required
                             />
-                            {/* Etiqueta de Confirmación lateral, como en la imagen */}
-                            <span className="ml-3 text-sm text-gray-500 hidden md:inline">Confirmación</span>
                         </div>
 
-                        <div className="flex justify-start pt-2">
+                        <div className="flex justify-end pt-2 gap-2">
+                             <button
+                                type="button"
+                                onClick={() => setIsEditingPassword(false)}
+                                className="px-3 py-1.5 rounded text-gray-600 text-sm hover:bg-gray-200 transition"
+                            >
+                                Cancelar
+                            </button>
                             <button
                                 type="submit"
                                 disabled={!isPasswordFormValid}
-                                className={`px-4 py-2 rounded font-medium text-white transition ${isPasswordFormValid ? 'hover:opacity-90' : 'opacity-50 cursor-not-allowed'}`}
+                                className={`px-3 py-1.5 rounded text-white text-sm transition ${isPasswordFormValid ? 'hover:opacity-90' : 'opacity-50 cursor-not-allowed'}`}
                                 style={{ backgroundColor: AZUL_MARINO }}
                             >
                                 Actualizar
                             </button>
                         </div>
 
-                        {/* Mensajes de error simples */}
                         {(newPassword.length > 0 && newPassword.length < 6) && (
                             <p className="text-red-500 text-xs mt-1">La nueva contraseña debe tener al menos 6 caracteres.</p>
                         )}
@@ -350,7 +353,6 @@ export default function PerfilPage() {
         </div>
       </div>
 
-      {/* 4. BLOQUE DE GUARDAR CAMBIOS (Aparece condicionalmente) */}
       {hasUnsavedChanges && (
         <div className="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-2xl border-t border-gray-200 flex justify-end items-center z-50">
             <div className="mr-8 text-gray-700 font-medium text-sm">

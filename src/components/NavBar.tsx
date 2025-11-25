@@ -1,33 +1,29 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-// Se elimina la importación problemática: import { usePathname } from "next/navigation";
+import Link from "next/link";
 
-// Hook personalizado para obtener la ruta actual (reemplazando usePathname)
+// Hook personalizado para obtener la ruta actual
 const useClientPathname = () => {
   const [pathname, setPathname] = useState('/');
-
-  // Usamos useEffect para acceder a 'window' solo en el cliente
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setPathname(window.location.pathname);
     }
   }, []);
-
   return pathname;
 };
 
-
 type Props = {
   className?: string;
-  azul: string; // Color #16469B (Típicamente el color activo)
-  dorado: string; // Color #FFD100 (Típicamente el fondo del navbar)
+  azul: string; 
+  dorado: string;
 };
 
 export default function NavBar({ className, azul, dorado }: Props) {
-  // Usamos el hook nativo de JS en lugar de usePathname
   const pathname = useClientPathname();
-  // Estado para controlar qué menú desplegable está abierto (usando el label como identificador)
+  
+  // Estado para controlar qué menú está abierto
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
   const menuItems = [
@@ -36,23 +32,22 @@ export default function NavBar({ className, azul, dorado }: Props) {
       href: "#",
       label: "Calificaciones",
       id: "calificaciones",
-      dropdown: [ // El submenú para Calificaciones
-        { href: "/calificaciones/subir", label: "Subir calificaciones vía Excel" },
+      dropdown: [
+        { href: "/calificaciones/subir-calificaciones", label: "Subir calificaciones vía Excel" },
         { href: "/calificaciones/consultar-calificaciones", label: "Consultar calificaciones" },
       ],
-      // No disabled: true, para permitir el clic y abrir el dropdown
     },
     { href: "#", label: "Alumnos", id: "alumnos", disabled: true },
     { href: "/reportes", label: "Reportes Académicos", id: "reportes" },
-    { href: "/Alertas-Faltas", label: "Alertas por Faltas", id: "alertas", disabled: true },
+    // ✅ "Alertas por Faltas" ACTIVADO (eliminé disabled: true)
+    { href: "/alertas-faltas", label: "Alertas por Faltas", id: "alertas" },
+    { href: "#", label: "Desempeño", id: "desempeno", disabled: true },
   ];
 
   const handleMenuClick = (id: string, hasDropdown: boolean) => {
     if (hasDropdown) {
-      // Alternar el dropdown: si está abierto, ciérralo; si está cerrado, ábrelo.
       setOpenDropdown(openDropdown === id ? null : id);
     } else {
-      // Si se hace clic en un enlace normal, cerrar cualquier dropdown abierto
       setOpenDropdown(null);
     }
   };
@@ -62,76 +57,72 @@ export default function NavBar({ className, azul, dorado }: Props) {
       className={className}
       style={{ backgroundColor: dorado, borderTop: `6px solid ${azul}` }}
     >
-      <div className="max-w-7xl mx-auto px-8 w-full">
-        {/* Restauramos el gap-10 original */}
-        <ul className="flex justify-start gap-10">
+      <div className="max-w-7xl mx-auto px-8 w-full flex justify-between items-center">
+        
+        {/* --- MENÚ PRINCIPAL --- */}
+        <ul className="flex justify-start gap-8 w-full">
           {menuItems.map((item) => {
             const hasDropdown = item.dropdown && item.dropdown.length > 0;
-            // Detecta ruta activa o subruta, incluyendo las del dropdown
             const isActive =
               pathname === item.href ||
               pathname.startsWith(item.href + "/") ||
               (hasDropdown && item.dropdown.some(sub => pathname.startsWith(sub.href)));
 
             const isMenuOpen = openDropdown === item.id;
-
-            // Define la clase de color basada en el estado original
+            
+            // Estilos condicionales
             const textColorClass = item.disabled
-                ? "text-white" // Los deshabilitados se ven como los demás, pero son opacos
-                : (isActive || isMenuOpen) // Si está activo O el dropdown está abierto
-                    ? `text-[${azul}]` // Usa el color azul del prop
-                    : "text-white"; // Color por defecto (blanco)
+                ? "text-white/70 cursor-not-allowed"
+                : (isActive || isMenuOpen)
+                    ? `text-[${azul}]` // Color activo (azul)
+                    : "text-white hover:text-black"; // Color inactivo (blanco)
 
             return (
               <li
                 key={item.id}
                 className="relative"
-                // Añadimos un listener para cerrar el menú si el usuario hace clic fuera
-                onBlur={() => isMenuOpen && setTimeout(() => setOpenDropdown(null), 100)}
-                tabIndex={0} // Necesario para el evento onBlur
+                onBlur={(e) => {
+                    // Cierra el menú si el foco sale del elemento
+                    if (!e.currentTarget.contains(e.relatedTarget)) {
+                        setTimeout(() => setOpenDropdown(null), 200);
+                    }
+                }}
+                tabIndex={0}
               >
                 <a
                   href={item.disabled ? undefined : item.href}
                   onClick={(e) => {
                     if (hasDropdown) {
-                      e.preventDefault(); // Previene la navegación
+                      e.preventDefault();
                       handleMenuClick(item.id, true);
                     } else if (!item.disabled) {
                        handleMenuClick(item.id, false);
                     }
                   }}
-                  className={`px-4 py-2 transition font-medium text-lg ${
-                    item.disabled
-                      ? "cursor-not-allowed opacity-70"
-                      : "hover:text-black" // Cambiado a black en hover para que se vea sobre el dorado
-                  } ${textColorClass}`}
-                  style={{ color: (isActive || isMenuOpen) ? azul : 'white' }}
+                  className={`px-2 py-4 block transition font-medium text-sm lg:text-base ${textColorClass}`}
+                  style={{ color: (isActive || isMenuOpen) ? azul : undefined }}
                 >
                   {item.label}
                 </a>
 
-                {/* Menú Desplegable (SOLO visible si hasDropdown es verdadero y está abierto) */}
+                {/* Menú Desplegable */}
                 {hasDropdown && isMenuOpen && (
                   <div
-                    className="absolute top-full left-0 mt-0 w-64 shadow-2xl z-20 rounded-b-lg overflow-hidden"
-                    // Estilo del dropdown: Blanco con borde azul.
-                    style={{ backgroundColor: 'white', border: `1px solid ${azul}` }}
+                    className="absolute top-full left-0 w-64 bg-white shadow-xl z-50 rounded-b-lg overflow-hidden border-t-0 border border-gray-200"
                   >
                     {item.dropdown.map((subItem) => (
-                      <a
+                      <Link
                         key={subItem.label}
                         href={subItem.href}
-                        // Si la subruta está activa, la marcamos
-                        className={`block p-3 text-sm font-medium transition-colors whitespace-nowrap
-                          ${pathname === subItem.href || pathname.startsWith(subItem.href + '/')
-                            ? `bg-gray-100 text-[${azul}]` // Fondo suave si es la ruta activa
-                            : `text-[${azul}] hover:bg-gray-200` // Hover suave si no está activa
+                        className={`block px-4 py-3 text-sm font-medium transition-colors
+                          ${pathname === subItem.href 
+                            ? `bg-blue-50 text-[${azul}]` 
+                            : `text-gray-700 hover:bg-gray-100 hover:text-[${azul}]`
                           }
                         `}
-                        style={{ color: azul }}
                       >
                         {subItem.label}
-                      </a>
+                      </Link>
                     ))}
                   </div>
                 )}
@@ -139,6 +130,8 @@ export default function NavBar({ className, azul, dorado }: Props) {
             );
           })}
         </ul>
+        
+        {/* Se eliminó el bloque de usuario de aquí */}
       </div>
     </nav>
   );

@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
-// Usamos el alias @ para asegurar que encuentre los componentes sin importar donde esté este archivo
+import { useState, useEffect } from "react"; // 👈 Importamos useEffect
 import SectionTitle from "@/components/ui/SectionTitle";
 import Checkbox from "@/components/ui/Checkbox";
 import CardMateria from "@/components/ui/CardMateria";
 import dynamic from "next/dynamic";
 
-// ✅ Import dinámico del calendario para evitar errores de hidratación (SSR)
+// ✅ Import dinámico del calendario
 const DatePicker = dynamic(
   () =>
     import("react-datepicker").then((mod) => mod.default) as unknown as Promise<React.ComponentType<any>>,
@@ -15,10 +14,12 @@ const DatePicker = dynamic(
 );
 
 import "react-datepicker/dist/react-datepicker.css";
-// Opcional: Estilos personalizados para el calendario para que combine con UNISON
-import "@/app/globals.css"; // Asegúrate de tener tus estilos globales aquí
+import "@/app/globals.css";
 
 export default function InicioPage() {
+  // 1️⃣ Estado para guardar el nombre del profesor
+  const [nombreProfesor, setNombreProfesor] = useState<string>("");
+
   // Datos simulados (Mocks)
   const [avisos, setAvisos] = useState([
     { id: 1, texto: "Alerta por faltas - Grupo 1", checked: true },
@@ -28,22 +29,46 @@ export default function InicioPage() {
 
   const [fecha, setFecha] = useState<Date | null>(new Date());
 
+  // 2️⃣ Efecto para leer el usuario del LocalStorage
+  useEffect(() => {
+    // Verificamos si estamos en el navegador para evitar errores de servidor
+    if (typeof window !== "undefined") {
+      const userStored = localStorage.getItem("user");
+      
+      if (userStored) {
+        try {
+          const userObj = JSON.parse(userStored);
+          // El backend devuelve el nombre en la propiedad 'nombre' dentro del objeto 'user'
+          // Si existe, lo usamos; si no, ponemos un texto por defecto.
+          if (userObj && userObj.nombre) {
+            setNombreProfesor(userObj.nombre);
+          } else {
+            setNombreProfesor("Usuario");
+          }
+        } catch (error) {
+          console.error("Error al leer datos del usuario:", error);
+        }
+      }
+    }
+  }, []);
+
   return (
     <div className="min-h-screen bg-white p-8 font-sans">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between gap-10 relative">
         
-        {/* 🔵 Franja azul decorativa (Ajustada para que no tape contenido importante) */}
+        {/* 🔵 Franja azul decorativa */}
         <div className="absolute top-[3.5rem] left-0 right-0 h-[2px] bg-[#16469B] -z-0 opacity-20 md:opacity-100" />
 
         {/* --- COLUMNA IZQUIERDA: CONTENIDO --- */}
         <div className="flex-1 z-10">
-          {/* Título de Bienvenida */}
+          {/* Título de Bienvenida Personalizado */}
           <div className="bg-white pr-4 inline-block mb-8">
             <h2
                 className="text-2xl md:text-3xl font-sans text-[#16469B] font-semibold"
                 style={{ fontFamily: "Inter, sans-serif" }}
             >
-                Bienvenido Prof. Ochoa Hernandez José Luis
+                {/* 3️⃣ Aquí mostramos el nombre dinámico o 'Cargando...' si aún no está listo */}
+                Bienvenido Prof. {nombreProfesor || "..."}
             </h2>
           </div>
 
@@ -111,7 +136,6 @@ export default function InicioPage() {
         </div>
 
         {/* --- COLUMNA DERECHA: CALENDARIO --- */}
-        {/* Ajustado con 'sticky' para que siga al usuario al hacer scroll si hay mucho contenido */}
         <div className="md:w-[300px] mt-8 md:mt-14 flex flex-col items-center md:items-end z-10">
           <div className="sticky top-10 bg-white p-2 rounded-xl shadow-lg border border-gray-100">
             <h4 className="text-[#16469B] font-bold text-center mb-2">Calendario Escolar</h4>
@@ -135,7 +159,7 @@ export default function InicioPage() {
 
       </div>
       
-      {/* Estilos en línea para personalizar el calendario al azul UNISON sin archivo CSS extra */}
+      {/* Estilos del calendario */}
       <style jsx global>{`
         .react-datepicker {
             border: none !important;
@@ -151,7 +175,7 @@ export default function InicioPage() {
             border-radius: 50% !important;
         }
         .react-datepicker__day:hover {
-            background-color: #E6A425 !important; /* Amarillo UNISON al pasar mouse */
+            background-color: #E6A425 !important;
             color: white !important;
             border-radius: 50% !important;
         }
@@ -161,7 +185,7 @@ export default function InicioPage() {
             text-transform: capitalize !important;
         }
         .react-datepicker__day-name {
-            color: #E6A425 !important; /* Días en dorado */
+            color: #E6A425 !important;
             font-weight: bold !important;
         }
       `}</style>
