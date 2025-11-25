@@ -1,209 +1,341 @@
-// src/app/calificaciones/subir-excel/page.tsx
-'use client';
+"use client";
 
-import { useState, FormEvent } from 'react';
-import Link from 'next/link';
+import React, { useState, useCallback } from 'react';
+import { UploadCloud, XCircle, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
-// Definiciones de interfaz para asegurar el tipado
-interface CalificacionExcel {
-    matricula: string;
-    codigo_materia: string;
-    periodo: string;
-    // ... otros campos
-}
+// --- CONFIGURACIÓN DE COLORES ---
+const AZUL_UNISON = "#16469B";
+const DORADO_UNISON = "#FFD100";
 
-interface ErrorDetail {
-    fila: CalificacionExcel;
-    error: string;
-}
+// --- TIPOS ---
+type ModalType = 'none' | 'preview' | 'success' | 'error_file' | 'error_format' | 'loading';
 
-interface UploadResponse {
-    mensaje: string;
-    totalActualizados?: number;
-    totalErrores?: number;
-    detalles?: ErrorDetail[];
-}
+export default function SubirCalificacionesPage() {
+  const [modal, setModal] = useState<ModalType>('none');
+  const [fileName, setFileName] = useState('');
+  const [isDragOver, setIsDragOver] = useState(false);
 
-export default function UploadGradesPage() {
-    const [file, setFile] = useState<File | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [message, setMessage] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
-    const [responseDetails, setResponseDetails] = useState<UploadResponse | null>(null);
+  const [fileToUpload, setFileToUpload] = useState<File | null>(null);
+  const [previewData, setPreviewData] = useState<any[]>([]);
+  const [uploadStats, setUploadStats] = useState({ actualizados: 0, errores: 0 });
+  const [errorMessage, setErrorMessage] = useState('');
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files.length > 0) {
-            const uploadedFile = e.target.files[0];
-            
-            if (!uploadedFile.name.match(/\.(xlsx|xls)$/i)) {
-                setError('Por favor, seleccione un archivo de Excel válido (.xlsx o .xls).');
-                setFile(null);
-            } else {
-                setFile(uploadedFile);
-                setError(null);
-                setMessage(null);
-                setResponseDetails(null);
-            }
+  // --- PROCESAR ARCHIVO CLIENT SIDE ---
+  const processFile = useCallback((file: File) => {
+    console.log("====== INICIANDO PROCESO DEL ARCHIVO ======");
+    console.log("Archivo recibido:", file);
+
+    const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+    console.log("Validación de extensión:", isExcel);
+
+    if (!isExcel) {
+      console.log("ERROR: Formato inválido");
+      setErrorMessage("El formato del archivo no es válido. Solo .xlsx o .xls");
+      setModal('error_format');
+      return;
+    }
+
+    setFileName(file.name);
+    setFileToUpload(file);
+    setModal('loading');
+
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      console.log("Archivo leído en memoria correctamente.");
+
+      try {
+        const data = e.target?.result;
+
+        console.log("Leyendo workbook XLSX...");
+        const workbook = XLSX.read(data, { type: 'binary' });
+
+        console.log("Hojas encontradas:", workbook.SheetNames);
+
+        const sheetName = workbook.SheetNames[0];
+        console.log("Usando hoja:", sheetName);
+
+        const sheet = workbook.Sheets[sheetName];
+
+        const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+        console.log("JSON generado desde Excel:", jsonData);
+
+        if (jsonData.length === 0) {
+          console.log("ERROR: Archivo sin registros");
+          setErrorMessage("El archivo está vacío o no tiene datos legibles.");
+          setModal('error_format');
+          return;
         }
+
+        console.log("ÉXITO: Datos cargados. Total registros:", jsonData.length);
+        setPreviewData(jsonData);
+        setModal('preview');
+
+      } catch (error) {
+        console.error("ERROR INTERNO LEYENDO ARCHIVO:", error);
+        setErrorMessage("Ocurrió un error al leer el archivo internamente.");
+        setModal('error_file');
+      }
     };
 
-    const handleSubmit = async (e: FormEvent) => {
-        e.preventDefault();
-        
-        if (!file) {
-            setError('Debe seleccionar un archivo para subir.');
-            return;
-        }
-
-        setIsLoading(true);
-        setMessage(null);
-        setError(null);
-        setResponseDetails(null);
-
-        const formData = new FormData();
-        formData.append('excel', file); 
-
-        try {
-            const res = await fetch('/api/upload-calificaciones', {
-                method: 'POST',
-                body: formData,
-            });
-
-            const data: UploadResponse = await res.json();
-            
-            // SOLUCIÓN DE DEPURACIÓN
-            if (data.totalErrores && data.totalErrores > 0) {
-                console.error("ERRORES DETALLADOS DE PROCESAMIENTO:", data.detalles);
-            }
-            
-            if (!res.ok && res.status !== 202) {
-                throw new Error(data.mensaje || 'Error desconocido al subir el archivo.');
-            }
-
-            setMessage(data.mensaje);
-            setResponseDetails(data);
-            setFile(null);
-
-        } catch (err: any) {
-            console.error(err);
-            setError(err.message || 'Error de conexión con el servidor.');
-        } finally {
-            setIsLoading(false);
-        }
+    reader.onerror = (err) => {
+      console.error("ERROR en FileReader:", err);
+      setErrorMessage("No se pudo leer el archivo.");
+      setModal('error_file');
     };
 
-    const isSuccess = responseDetails && responseDetails.totalErrores === 0 && message && !error;
-    const isWarning = responseDetails && responseDetails.totalErrores! > 0 && message && !error;
+    reader.readAsBinaryString(file);
+  }, []);
+
+  // --- ENVÍO AL SERVIDOR ---
+  const handleConfirmUpload = async () => {
+    console.log("====== ENVIANDO AL SERVIDOR ======");
+
+    if (!fileToUpload) {
+      console.log("ERROR: fileToUpload es null");
+      return;
+    }
+
+    setModal('loading');
+
+    try {
+      const formData = new FormData();
+      formData.append('excel', fileToUpload);
+
+      console.log("Realizando petición POST a /api/upload-calificaciones");
+
+      const response = await fetch('/api/upload-calificaciones', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      console.log("Respuesta del servidor:", result);
+
+      if (!response.ok) {
+        console.log("ERROR desde el servidor:", result);
+        throw new Error(result.mensaje || 'Error en el servidor');
+      }
+
+      console.log("ÉXITO: Datos actualizados:", result);
+
+      setUploadStats({
+        actualizados: result.totalActualizados || 0,
+        errores: result.totalErrores || 0
+      });
+
+      setModal('success');
+
+    } catch (error: any) {
+      console.error("ERROR en upload:", error);
+      setErrorMessage(error.message || "Error al conectar con el servidor.");
+      setModal('error_file');
+    }
+  };
+
+  // --- MANEJO DRAG & DROP ---
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const files = e.dataTransfer.files;
+    if (files.length > 0) processFile(files[0]);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) processFile(files[0]);
+    e.target.value = '';
+  };
+
+  // --- MODAL ---
+  const Modal = ({ type, title, message, children, onConfirm }: any) => {
+    let icon, color;
+    switch (type) {
+      case 'success': icon = <CheckCircle className="w-10 h-10" />; color = 'text-green-600'; break;
+      case 'error': icon = <XCircle className="w-10 h-10" />; color = 'text-red-600'; break;
+      case 'alert': icon = <AlertTriangle className="w-10 h-10" />; color = 'text-yellow-600'; break;
+      case 'loading': icon = <Loader2 className="w-10 h-10 animate-spin" />; color = 'text-blue-600'; break;
+      default: icon = <AlertTriangle className="w-10 h-10" />; color = 'text-gray-600';
+    }
 
     return (
-        <div className="min-h-screen bg-gray-50 p-6">
-            <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-xl p-8">
-                
-                <div className="flex justify-between items-center mb-6 border-b pb-4">
-                    <h1 className="text-3xl font-bold text-gray-800">
-                        Subir Calificaciones vía Excel
-                    </h1>
-                    <Link href="/" className="text-blue-600 hover:text-blue-800 transition">
-                        ← Volver al inicio
-                    </Link>
-                </div>
+      <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center z-50 p-4">
+        <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg">
+          <div className="p-4 flex justify-between items-center border-b">
+            <h3 className={`text-xl font-semibold flex items-center gap-2 ${color}`}>
+              {icon} {title}
+            </h3>
+            {type !== 'loading' && (
+              <button onClick={() => setModal('none')} className="text-gray-400 hover:text-gray-600 transition">
+                <XCircle className="w-6 h-6" />
+              </button>
+            )}
+          </div>
 
-                {/* Instrucciones de formato */}
-                <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-500 text-yellow-800">
-                    <h3 className="font-semibold text-lg mb-2">Instrucciones y Formato de Archivo</h3>
-                    <ol className="list-decimal list-inside space-y-1 text-sm">
-                        <li>**No cambies los encabezados** de la hoja PLANTILLA (primera fila).</li>
-                        <li>**Campos obligatorios:** <code className="bg-yellow-100 p-0.5 rounded font-mono">matricula</code>, <code className="bg-yellow-100 p-0.5 rounded font-mono">codigo\_materia</code>, <code className="bg-yellow-100 p-0.5 rounded font-mono">periodo</code>.</li>
-                        <li>**Formato de fecha** para <code className="bg-yellow-100 p-0.5 rounded font-mono">fecha\_cierre</code>: <span className="font-mono">YYYY-MM-DD</span>.</li>
-                        <li>**Rangos de calificaciones:** <span className="font-medium">0.00 - 100.00</span>.</li>
-                        <li>Si una calificación no aplica, **deja la celda vacía**.</li>
-                    </ol>
-                    <p className="mt-4 font-semibold text-gray-700">Columnas esperadas (deben estar TODAS):</p>
-                    <code className="block bg-yellow-100 p-2 mt-2 rounded font-mono text-sm overflow-x-auto">
-                        matricula | nombre | apellido\_paterno | apellido\_materno | correo | codigo\_materia | periodo | ordinario | extraordinario | final | estatus\_kardex | fecha\_cierre | comentario
-                    </code>
-                </div>
+          <div className="p-6">
+            <p className="text-gray-700 mb-4">{message}</p>
+            {children}
+          </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <div>
-                        <label htmlFor="file-upload" className="block text-lg font-medium text-gray-700 mb-2">
-                            Seleccionar Archivo Excel
-                        </label>
-                        <input
-                            id="file-upload"
-                            type="file"
-                            accept=".xlsx, .xls"
-                            onChange={handleFileChange}
-                            className="block w-full text-sm text-gray-500
-                            file:mr-4 file:py-2 file:px-4
-                            file:rounded-full file:border-0
-                            file:text-sm file:font-semibold
-                            file:bg-blue-50 file:text-blue-700
-                            hover:file:bg-blue-100"
-                            disabled={isLoading}
-                        />
-                        {file && (
-                            <p className="mt-2 text-sm text-gray-600">Archivo seleccionado: <span className="font-medium">{file.name}</span></p>
-                        )}
-                    </div>
-
-                    <button
-                        type="submit"
-                        className={`w-full py-3 px-4 rounded-lg text-white font-semibold transition ${
-                            (isLoading || !file) ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
-                        }`}
-                        disabled={isLoading || !file}
-                    >
-                        {isLoading ? (
-                            <div className="flex items-center justify-center">
-                                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                                Subiendo y Procesando...
-                            </div>
-                        ) : 'Subir y Procesar Calificaciones'}
-                    </button>
-                </form>
-
-                {/* 3. Área de Mensajes y Resultados */}
-                <div className="mt-8">
-                    {error && (
-                        <div className="p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-100 border border-red-300" role="alert">
-                            <span className="font-medium">Error Crítico:</span> {error}
-                        </div>
-                    )}
-
-                    {isSuccess && (
-                        <div className="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-100 border border-green-300" role="alert">
-                            <span className="font-medium">¡Proceso Exitoso!</span> {message}
-                            <p className="mt-1 text-xs">Se actualizaron {responseDetails!.totalActualizados} calificaciones.</p>
-                        </div>
-                    )}
-                    
-                    {isWarning && (
-                        <div className="p-4 mb-4 text-sm text-yellow-800 rounded-lg bg-yellow-100 border border-yellow-300" role="alert">
-                            <span className="font-medium">Advertencia:</span> {message}
-                            <p className="mt-1 text-xs">Actualizados: {responseDetails!.totalActualizados} | Errores: {responseDetails!.totalErrores}</p>
-                            
-                            {/* ESTE BLOQUE MUESTRA LOS DETALLES DEL ERROR SQL */}
-                            {responseDetails!.detalles && responseDetails!.detalles.length > 0 && (
-                                <div className="mt-3 max-h-40 overflow-y-auto p-2 bg-yellow-50 rounded-md border border-yellow-300">
-                                    <p className="font-semibold underline">Detalles de Errores (FALLO DE BÚSQUEDA):</p>
-                                    <ul className="list-disc list-inside text-xs space-y-1">
-                                        {responseDetails!.detalles.map((detail, index) => (
-                                            <li key={index} className="break-words">
-                                                **Fila: {detail.fila.matricula}** ({detail.fila.codigo_materia}, {detail.fila.periodo}): <span className="font-bold text-red-700">{detail.error}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                </div>
+          {type !== 'loading' && (
+            <div className="p-4 flex justify-end border-t">
+              {title.includes('Vista previa') ? (
+                <>
+                  <button onClick={() => setModal('none')} className="px-4 py-2 mr-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition">Cancelar</button>
+                  <button onClick={onConfirm} className="px-6 py-2 text-white font-semibold rounded-lg transition" style={{ backgroundColor: DORADO_UNISON }}>Confirmar Carga</button>
+                </>
+              ) : (
+                <button onClick={onConfirm} className="px-6 py-2 text-white font-semibold rounded-lg transition" style={{ backgroundColor: AZUL_UNISON }}>Aceptar</button>
+              )}
             </div>
+          )}
         </div>
+      </div>
     );
+  };
+
+  // --- MODALES ---
+  const renderModal = () => {
+    switch (modal) {
+      case 'loading':
+        return <Modal type="loading" title="Procesando..." message="Por favor espere mientras procesamos el archivo." />;
+
+      case 'preview': {
+        const headers = previewData.length > 0 ? Object.keys(previewData[0]) : [];
+
+        return (
+          <Modal
+            type="alert"
+            title="Vista previa del archivo"
+            message={`Archivo: ${fileName}. Registros detectados: ${previewData.length}.`}
+            onConfirm={handleConfirmUpload}
+          >
+            <div className="border rounded-lg bg-white shadow-inner max-h-80 overflow-auto">
+              <table className="min-w-max w-full border-collapse text-sm">
+                <thead className="bg-gray-100 sticky top-0 shadow">
+                  <tr>
+                    {headers.map(header => (
+                      <th key={header} className="px-4 py-2 text-left border-b font-semibold text-gray-700">{header}</th>
+                    ))}
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {previewData.slice(0, 100).map((row, index) => (
+                    <tr key={index} className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
+                      {headers.map(h => (
+                        <td key={`${index}-${h}`} className="px-4 py-2 border-b whitespace-nowrap text-gray-800">
+                          {row[h]}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {previewData.length > 100 && (
+              <p className="text-xs text-gray-500 text-center mt-2">
+                Mostrando solo los primeros 100 registros...
+              </p>
+            )}
+          </Modal>
+        );
+      }
+
+      case 'success':
+        return (
+          <Modal
+            type="success"
+            title="Carga Exitosa"
+            message={`Registros actualizados: ${uploadStats.actualizados}. Errores: ${uploadStats.errores}.`}
+            onConfirm={() => { setModal('none'); setFileName(''); setPreviewData([]); }}
+          />
+        );
+
+      case 'error_file':
+      case 'error_format':
+        return (
+          <Modal
+            type="error"
+            title="Error en la carga"
+            message={errorMessage}
+            onConfirm={() => setModal('none')}
+          />
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  // --- UI PRINCIPAL ---
+  return (
+    <div className="min-h-screen bg-gray-100/50 p-8 pt-6">
+      <div className="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">
+        <h1 className="text-2xl font-semibold mb-4" style={{ color: AZUL_UNISON }}>
+          Subir Calificaciones por Grupo
+        </h1>
+
+        <p className="text-gray-700 mb-6 max-w-2xl">
+          Seleccione el archivo Excel. Debe contener las columnas requeridas (matricula, codigo_materia, calificacion, etc).
+        </p>
+
+        <div
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`border-4 border-dashed rounded-xl p-12 text-center transition-all cursor-pointer max-w-md mx-auto ${
+            isDragOver ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 hover:border-gray-500'
+          }`}
+          style={{ borderColor: AZUL_UNISON }}
+          onClick={() => document.getElementById('file-upload-input')?.click()}
+        >
+          <UploadCloud className="w-16 h-16 mx-auto mb-4" style={{ color: AZUL_UNISON }} />
+          <p className="text-lg font-medium text-gray-700">
+            Arrastra tu archivo aquí <br /> o haz click para seleccionarlo
+          </p>
+
+          <input
+            type="file"
+            id="file-upload-input"
+            className="hidden"
+            accept=".xlsx, .xls"
+            onChange={handleFileSelect}
+          />
+
+          <button
+            type="button"
+            className="mt-6 px-8 py-3 font-semibold rounded-lg shadow-md transition-colors hover:shadow-lg"
+            style={{ backgroundColor: DORADO_UNISON, color: AZUL_UNISON }}
+          >
+            Cargar
+          </button>
+        </div>
+
+        <div className="flex justify-center mt-8">
+          <button
+            className="px-8 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition shadow-sm"
+            onClick={() => { setModal('none'); setFileName(''); }}
+          >
+            Cancelar
+          </button>
+        </div>
+
+        {renderModal()}
+      </div>
+    </div>
+  );
 }
