@@ -11,7 +11,6 @@ export async function POST(req: NextRequest) {
     }
 
     // 1. Buscar el usuario, sus datos de profesor y sus roles
-    // Hacemos JOIN con profesor, usuario_rol y rol
     const query = `
       SELECT 
         u.id as usuario_id,
@@ -44,14 +43,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Usuario inactivo. Contacte al administrador." }, { status: 403 });
     }
 
-    // 4. Validar si tiene el rol de PROFESOR
-    // (El array de roles puede contener null si no tiene roles, filtramos eso)
-    const roles = user.roles.filter((r: string) => r !== null);
+    // 4. Validar si tiene el rol de PROFESOR (CORREGIDO)
+    // Obtenemos el array crudo, filtramos nulos y normalizamos a MAYÚSCULAS
+    const rolesRaw = user.roles || [];
+    const roles = rolesRaw
+      .filter((r: string | null) => r !== null) // Eliminar nulos si el usuario no tiene roles
+      .map((r: string) => r.toUpperCase().trim()); // Convertir a mayúsculas y quitar espacios
+
+    // Ahora la validación funcionará tanto si en la BD dice "profesor" como "PROFESOR"
     if (!roles.includes('PROFESOR')) {
       return NextResponse.json({ error: "No tiene permisos de Profesor." }, { status: 403 });
     }
 
-    // 5. Comparar contraseñas (Lo que escribió el usuario vs Hash en DB)
+    // 5. Comparar contraseñas
     const passwordMatch = await bcrypt.compare(password, user.password_hash);
 
     if (!passwordMatch) {
@@ -66,7 +70,7 @@ export async function POST(req: NextRequest) {
         profesorId: user.profesor_id,
         email: user.email,
         nombre: `${user.nombre} ${user.apellido_paterno}`,
-        roles: roles
+        roles: roles // Enviamos los roles ya normalizados al front
       }
     });
 
