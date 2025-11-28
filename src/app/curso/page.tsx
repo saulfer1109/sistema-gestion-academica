@@ -1,34 +1,49 @@
 "use client";
 
-import { useState } from "react";
-import FileUpload from "../../components/ui/FileUpload";
+import { useSearchParams, useRouter } from "next/navigation";
+import { Suspense } from "react";
+import FileUpload from "@/components/ui/FileUpload";
 
-export default function CursoPage() {
-  const [fileLoaded, setFileLoaded] = useState(false);
+function CursoContent() {
+  const searchParams = useSearchParams();
+  const grupoId = searchParams.get('grupoId');
+  const router = useRouter();
+
+  if (!grupoId) {
+      return <div className="p-10 text-red-500">Error: No se especificó el grupo. Vuelva al inicio.</div>;
+  }
 
   return (
-    <div className="p-10">
+    <div className="p-10 max-w-4xl mx-auto">
       {/* Título principal */}
       <h2
-        className="text-xl font-sans font-semibold text-[#16469B] mb-4"
+        className="text-2xl font-sans font-bold text-[#16469B] mb-2"
         style={{ fontFamily: "Inter, sans-serif" }}
       >
-        Información del curso
+        Cargar Lista de Asistencia
       </h2>
+      
+      <p className="text-gray-600 mb-8 text-[15px] leading-relaxed">
+         Sube el archivo Excel con la lista oficial de alumnos para asignarlos al <strong>Grupo {grupoId}</strong>.
+         El sistema detectará automáticamente los expedientes.
+      </p>
 
-      {/* Descripción inicial */}
-      {!fileLoaded && (
-        <p className="text-[#16469B] text-[15px] mb-6 max-w-[700px] leading-relaxed">
-          No se ha encontrado información del curso, suba el archivo para registrar y
-          actualizar la información
-        </p>
-      )}
-
-      {/* Componente de carga o vista previa */}
-      <FileUpload
-        fileLoaded={fileLoaded}
-        setFileLoaded={setFileLoaded}
+      {/* Componente de carga */}
+      <FileUpload 
+        grupoId={grupoId} 
+        onUploadSuccess={() => {
+            // Al terminar, redirigir a la vista de información para ver la lista ya cargada
+            router.push(`/curso/informacion?grupoId=${grupoId}`);
+        }}
       />
     </div>
   );
+}
+
+export default function CursoPage() {
+    return (
+        <Suspense fallback={<div className="p-10 text-center">Cargando...</div>}>
+            <CursoContent />
+        </Suspense>
+    );
 }

@@ -43,19 +43,20 @@ export default function AlertasFaltasPage() {
   const [motivo, setMotivo] = useState<string>('');
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  const [profesorId, setProfesorId] = useState<string>("");
+
   // 1. Cargar grupos asignados al profesor
   useEffect(() => {
     const fetchGrupos = async () => {
-      // 🟢 OBTENER USUARIO DEL LOCALSTORAGE
       const storedUser = localStorage.getItem('user');
-      if (!storedUser) return; // O redirigir a login
+      if (!storedUser) return; 
 
       try {
         const user = JSON.parse(storedUser);
-        const profesorId = user.profesorId; // Este ID viene del login corregido
+        const pId = user.profesorId;
+        setProfesorId(pId); // 🟢 Guardamos el ID en el estado
 
-        // 🟢 ENVIAR ID EN LA PETICIÓN
-        const res = await fetch(`/api/groups?profesorId=${profesorId}`);
+        const res = await fetch(`/api/groups?profesorId=${pId}`);
         
         if (!res.ok) throw new Error("Error al cargar grupos");
         
@@ -98,11 +99,9 @@ export default function AlertasFaltasPage() {
     }
   };
 
-  const handleJustificar = async () => {
+const handleJustificar = async () => {
     if (!selectedAlumno || justificarCount < 1) return;
     
-    // Obtener ID de profesor para la justificación también (opcional, el backend de justify ya lo quemaba a 1, pero idealmente debería ser dinámico)
-    // Por ahora mantenemos la lógica visual
     try {
       const res = await fetch('/api/attendance/justify', {
         method: 'POST',
@@ -110,6 +109,7 @@ export default function AlertasFaltasPage() {
         body: JSON.stringify({
           alumnoId: selectedAlumno.id,
           grupoId: grupoId,
+          profesorId: profesorId, // 🟢 Enviamos el ID real aquí
           cantidad: justificarCount,
           motivo: motivo
         })
@@ -118,7 +118,7 @@ export default function AlertasFaltasPage() {
       if (res.ok) {
         setModalOpen(false);
         setConfirmOpen(true);
-        consultar(); 
+        consultar(); // Recargar la tabla
       } else {
         const err = await res.json();
         alert(err.error || "Error al justificar");

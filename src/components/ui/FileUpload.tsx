@@ -1,209 +1,155 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation"; // 👈 importamos el router
+import { useRouter } from "next/navigation";
 
 interface FileUploadProps {
-  fileLoaded: boolean;
-  setFileLoaded: (value: boolean) => void;
+  // Eliminamos los props viejos que solo controlaban estado visual
+  // Agregamos los que necesitamos para la lógica real
+  grupoId: string;
+  onUploadSuccess?: () => void;
 }
 
-export default function FileUpload({ fileLoaded, setFileLoaded }: FileUploadProps) {
-  const [fileName, setFileName] = useState<string | null>(null);
-  const [showModal, setShowModal] = useState(false);
-  const router = useRouter(); // 👈 inicializamos router
+export default function FileUpload({ grupoId, onUploadSuccess }: FileUploadProps) {
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  
+  const router = useRouter();
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setFileName(file.name);
-      setFileLoaded(true);
+    const selectedFile = event.target.files?.[0];
+    if (selectedFile) {
+      // Permitir Excel y CSV
+      if (!selectedFile.name.match(/\.(xlsx|xls|csv)$/i)) {
+        setMessage({ type: 'error', text: 'Formato no válido. Usa Excel (.xlsx) o CSV.' });
+        return;
+      }
+      setFile(selectedFile);
+      setMessage(null);
     }
   };
 
-  const handleConfirm = () => {
-    setShowModal(true);
-  };
+  const handleConfirmUpload = async () => {
+    if (!file || !grupoId) return;
 
-  const handleCloseModal = () => {
-    setShowModal(false);
-    setFileLoaded(false);
-    setFileName(null);
+    setUploading(true);
+    setMessage(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('grupoId', grupoId);
+
+      // Llamada a la API que creamos en el paso 2
+      const res = await fetch('/api/groups/upload-students', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) throw new Error(result.error || "Error al subir archivo");
+
+      setMessage({ type: 'success', text: result.message });
+      
+      // Éxito: Esperar un momento y ejecutar la acción siguiente
+      setTimeout(() => {
+          setFile(null);
+          if (onUploadSuccess) {
+              onUploadSuccess();
+          } else {
+              router.push('/inicio');
+          }
+      }, 2000);
+
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message });
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleCancel = () => {
-    setFileLoaded(false);
-    setFileName(null);
-  };
-
-  // 👇 Nuevo: cancelar y volver al inicio
-  const handleCancelToInicio = () => {
-    router.push("/inicio");
+    setFile(null);
+    setMessage(null);
   };
 
   return (
-    <div
-      className="max-w-[700px] mx-auto flex flex-col items-center"
-      style={{ fontFamily: "Inter, sans-serif" }}
-    >
-      {/* Estado: sin archivo */}
-      {!fileLoaded && (
+    <div className="max-w-[700px] mx-auto flex flex-col items-center font-sans">
+      
+      {/* Mensajes de feedback */}
+      {message && (
+        <div className={`w-full p-4 mb-6 rounded-md text-center border ${message.type === 'success' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+          {message.text}
+        </div>
+      )}
+
+      {!file ? (
+        // VISTA 1: Seleccionar Archivo
         <div className="w-full flex flex-col items-center">
-          {/* Cuadro principal de carga */}
-          <div className="border-2 border-dashed border-[#16469B]/50 rounded-lg p-10 text-center max-w-[450px] mx-auto">
-            <div className="flex flex-col items-center justify-center gap-3">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-14 w-14 text-[#16469B]/70"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={1.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 16V4m0 0l-3.5 3.5M12 4l3.5 3.5M6 20h12a2 2 0 002-2v-4a2 2 0 00-2-2H6a2 2 0 00-2 2v4a2 2 0 002 2z"
-                />
-              </svg>
-
-              {/* Texto de carga en negro */}
-              <p className="text-black font-medium">
-                Arrastra tu archivo aquí <br />
-                <span className="text-black/80 text-sm">
-                  o haz click para seleccionarlo
-                </span>
-              </p>
-
-              <p className="text-xs text-black/70 mb-4">
-                Formatos permitidos: PDF (máx. 5MB)
-              </p>
-
-              {/* Botón de carga */}
-              <label className="cursor-pointer">
-                <span className="bg-[#16469B] hover:bg-[#0D1D4B] text-white py-2 px-6 rounded-md text-sm transition">
-                  Cargar
-                </span>
-                <input
-                  type="file"
-                  accept=".pdf"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-              </label>
-            </div>
-          </div>
-
-          {/* 🔹 Botón Cancelar (fuera del cuadro, centrado, regresa a inicio) */}
-          <button
-            onClick={handleCancelToInicio}
-            className="bg-gray-300 text-[#16469B] py-2 px-6 rounded-md text-sm mt-6 hover:bg-gray-400 transition"
+          <div 
+            className="border-2 border-dashed border-[#16469B]/40 rounded-xl p-12 text-center w-full max-w-[500px] hover:bg-blue-50/50 transition cursor-pointer"
+            onClick={() => document.getElementById('file-input')?.click()}
           >
-            Cancelar
-          </button>
-        </div>
-      )}
-
-      {/* Estado: vista previa */}
-      {fileLoaded && (
-        <div className="w-full">
-          <p className="text-[#16469B] font-medium mb-3">
-            El archivo válido: Vista previa
-          </p>
-
-          <div className="border border-gray-400 bg-gray-200 rounded-md overflow-auto h-[250px] mb-6">
-            <div className="p-6 text-sm text-[#16469B] leading-relaxed">
-              <p>
-                <strong>clave:</strong> 1234 <br />
-                <strong>materia:</strong> ejemplo
-              </p>
-              <table className="mt-4 w-full text-left border-collapse text-xs">
-                <thead className="border-b border-gray-400">
-                  <tr>
-                    <th>expediente</th>
-                    <th>nombre</th>
-                    <th>calificación final</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <tr key={i} className="border-b border-gray-300">
-                      <td>12345</td>
-                      <td>ejemplo {i}</td>
-                      <td>A</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Alineado a la derecha */}
-          <div className="flex flex-col items-end mt-4">
-            <p className="text-[#16469B] mb-3 text-right">
-              El archivo válido se ha cargado correctamente, ¿Desea continuar?
-            </p>
-            <div className="flex gap-4">
-              <button
-                onClick={handleCancel}
-                className="bg-gray-300 text-[#16469B] py-2 px-6 rounded-md text-sm hover:bg-gray-400 transition"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleConfirm}
-                className="bg-[#16469B] hover:bg-[#0D1D4B] text-white py-2 px-6 rounded-md text-sm transition"
-              >
-                Confirmar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ✅ Modal institucional de éxito */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg w-[350px] p-6 relative">
-            <button
-              onClick={handleCloseModal}
-              className="absolute top-2 right-3 text-gray-500 hover:text-gray-700"
-            >
-              ✕
-            </button>
-
-            <div className="flex items-center gap-3 mb-3">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={2}
-                stroke="green"
-                className="w-7 h-7"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M5 13l4 4L19 7"
-                />
+            <div className="flex flex-col items-center justify-center gap-4">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-[#16469B]/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              <h3 className="text-lg font-semibold text-[#16469B]">
-                Carga exitosa
-              </h3>
+              <div>
+                <p className="text-[#16469B] font-semibold text-lg">Cargar lista de alumnos</p>
+                <p className="text-gray-500 text-sm mt-1">Soporta archivos .xlsx, .xls</p>
+              </div>
+              <span className="bg-[#16469B] text-white py-2 px-6 rounded-lg text-sm font-medium mt-2 shadow-sm hover:bg-[#0D1D4B] transition">
+                Seleccionar Archivo
+              </span>
             </div>
-
-            <p className="text-[#16469B] text-sm mb-6">
-              Se cargó la información del curso correctamente
-            </p>
-
-            <div className="flex justify-end">
-              <button
-                onClick={handleCloseModal}
-                className="bg-gray-200 hover:bg-gray-300 text-[#16469B] px-4 py-2 rounded-md text-sm transition"
-              >
-                Aceptar
-              </button>
+            <input
+              id="file-input"
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+          </div>
+        </div>
+      ) : (
+        // VISTA 2: Confirmar Carga
+        <div className="w-full max-w-[500px] bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+          <h3 className="text-[#16469B] font-bold mb-6 text-lg border-b pb-2">Confirmar archivo</h3>
+          
+          <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-lg mb-8 border border-gray-200">
+            <div className="bg-green-100 p-2 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
             </div>
+            <div className="overflow-hidden">
+                <p className="font-semibold text-gray-800 truncate">{file.name}</p>
+                <p className="text-xs text-gray-500">{(file.size / 1024).toFixed(1)} KB</p>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={handleCancel}
+              className="px-5 py-2.5 rounded-lg text-gray-600 font-medium hover:bg-gray-100 transition"
+              disabled={uploading}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleConfirmUpload}
+              disabled={uploading}
+              className="bg-[#16469B] hover:bg-[#0D1D4B] text-white px-6 py-2.5 rounded-lg font-medium shadow-md transition flex items-center gap-2 disabled:opacity-70"
+            >
+              {uploading ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    Procesando...
+                  </>
+              ) : "Subir Alumnos"}
+            </button>
           </div>
         </div>
       )}

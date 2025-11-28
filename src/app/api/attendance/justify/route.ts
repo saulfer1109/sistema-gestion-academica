@@ -4,23 +4,19 @@ import { pool } from '@/app/lib/db';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    // alumnoId (el ID numérico) es requerido por la FK en la tabla 'incidencia'
-    const { alumnoId, grupoId, cantidad, motivo } = body; 
+    // 🟢 Ahora recibimos también 'profesorId'
+    const { alumnoId, grupoId, cantidad, motivo, profesorId } = body; 
 
-    if (!alumnoId || !grupoId || !cantidad || cantidad < 1) {
-      return NextResponse.json({ error: 'Datos incompletos (alumnoId, grupoId, cantidad son requeridos)' }, { status: 400 });
+    if (!alumnoId || !grupoId || !cantidad || !profesorId || cantidad < 1) {
+      return NextResponse.json({ error: 'Datos incompletos.' }, { status: 400 });
     }
 
-    // Obtenemos IDs necesarios para la tabla 'incidencia'
-    // Asumimos que el profesor_id = 1 (debería venir de la sesión)
-    const profesorId = 1; 
     const grupoData = await pool.query('SELECT materia_id FROM grupo WHERE id = $1', [grupoId]);
     if (grupoData.rows.length === 0) {
       return NextResponse.json({ error: 'Grupo no encontrado' }, { status: 404 });
     }
     const materiaId = grupoData.rows[0].materia_id;
 
-    // Usamos una transacción para insertar todas las justificaciones
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -37,7 +33,7 @@ export async function POST(req: NextRequest) {
       await client.query('COMMIT');
     } catch (e) {
       await client.query('ROLLBACK');
-      throw e; // Lanza el error para que lo capture el catch principal
+      throw e;
     } finally {
       client.release();
     }
