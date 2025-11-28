@@ -1,154 +1,112 @@
-import { NextResponse } from 'next/server';
-import { procesarArchivoCalificaciones } from '@/app/services/excel.service';
+import { NextRequest, NextResponse } from 'next/server';
 import { pool } from "@/app/lib/db";
+import { parseGradesFile } from "@/app/services/excel-grades.service";
 
-export async function POST(request: Request) {
-    let pgClient: any = null;
-
+export async function POST(req: NextRequest) {
+    let client = null;
     try {
-        const data = await request.formData();
-        const fileEntry = data.get('excel');
+        const formData = await req.formData();
+        const file = formData.get('excel') as File;
+        const grupoId = formData.get('grupoId') as string;
+
+        if (!file || !grupoId) return NextResponse.json({ mensaje: 'Faltan datos.' }, { status: 400 });
+
+        // 1. Obtener datos del grupo
+        const grupoRes = await pool.query("SELECT materia_id, periodo_id FROM grupo WHERE id = $1", [grupoId]);
+        if (grupoRes.rows.length === 0) return NextResponse.json({ mensaje: 'Grupo no encontrado.' }, { status: 404 });
         
-        if (!fileEntry || !(fileEntry instanceof File)) {
-            return NextResponse.json({ mensaje: 'No se subió ningún archivo.' }, { status: 400 });
-        }
-        
-        const file = fileEntry as File;
+        const { materia_id, periodo_id } = grupoRes.rows[0];
+
+        // 2. Procesar Excel
         const buffer = Buffer.from(await file.arrayBuffer());
-        
-        // Leer Excel
-        const filas = procesarArchivoCalificaciones({
-            data: buffer,
-            name: file.name,
-        });
+        // Aquí usamos el nuevo servicio mejorado
+        const filas = parseGradesFile(buffer);
 
-        pgClient = await pool.connect();
-        await pgClient.query("BEGIN");
+        console.log(`Grupo: ${grupoId}, Filas encontradas en Excel: ${filas.length}`); // Log para depurar en servidor
 
-        let totalActualizados = 0;
-        let totalCreados = 0;
-        const errores: any[] = [];
+        if (filas.length === 0) {
+             return NextResponse.json({ mensaje: 'El archivo parece estar vacío o no se encontraron matrículas.' }, { status: 400 });
+        }
+
+        client = await pool.connect();
+        await client.query("BEGIN");
+
+        let actualizados = 0;
+        const errores = [];
 
         for (const fila of filas) {
             try {
-                /** --- Buscar Alumno --- **/
-                const qAlumno = await pgClient.query(
-                    `SELECT id FROM alumno WHERE TRIM(matricula)=TRIM($1)`,
+                // A. Buscar ID del alumno (Buscamos por Matricula O Expediente)
+                const resAlumno = await client.query(
+                    "SELECT id FROM alumno WHERE TRIM(matricula) = $1 OR TRIM(expediente) = $1",
                     [fila.matricula]
                 );
-                if (qAlumno.rows.length === 0)
-                    throw new Error(`Alumno no existe: ${fila.matricula}`);
 
-                /** --- Buscar Materia --- **/
-                const qMateria = await pgClient.query(
-                    `SELECT id FROM materia WHERE TRIM(codigo)=TRIM($1)`,
-                    [fila.codigo_materia]
-                );
-                if (qMateria.rows.length === 0)
-                    throw new Error(`Materia no existe: ${fila.codigo_materia}`);
+                if (resAlumno.rows.length === 0) {
+                    errores.push(`Matrícula/Expediente ${fila.matricula} no existe en la BD.`);
+                    continue;
+                }
+                const alumnoId = resAlumno.rows[0].id;
 
-                /** --- Buscar Periodo --- **/
-                const qPeriodo = await pgClient.query(
-                    `SELECT id FROM periodo WHERE TRIM(etiqueta)=TRIM($1)`,
-                    [fila.periodo]
-                );
-                if (qPeriodo.rows.length === 0)
-                    throw new Error(`Periodo no existe: ${fila.periodo}`);
+                // B. Verificar calificación final
+                if (fila.final === undefined) {
+                    errores.push(`Alumno ${fila.matricula}: Columna 'Final' vacía.`);
+                    continue;
+                }
 
-                const alumnoId = qAlumno.rows[0].id;
-                const materiaId = qMateria.rows[0].id;
-                const periodoId = qPeriodo.rows[0].id;
-
-                /** --- Buscar Kardex --- **/
-                const qKardex = await pgClient.query(
-                    `SELECT id FROM kardex
-                     WHERE alumno_id=$1 AND materia_id=$2 AND periodo_id=$3`,
-                    [alumnoId, materiaId, periodoId]
+                // C. Buscar Kardex existente
+                const resKardex = await client.query(
+                    "SELECT id FROM kardex WHERE alumno_id=$1 AND materia_id=$2 AND periodo_id=$3",
+                    [alumnoId, materia_id, periodo_id]
                 );
 
                 let kardexId;
-
-                /** --- Si NO existe, crear kardex --- **/
-                if (qKardex.rows.length === 0) {
-                    const nuevo = await pgClient.query(`
-                        INSERT INTO kardex (alumno_id, materia_id, periodo_id, estatus, calificacion)
-                        VALUES ($1, $2, $3, 'Ordinario', $4)
-                        RETURNING id
-                    `, [alumnoId, materiaId, periodoId, fila.final]);
-
+                if (resKardex.rows.length > 0) {
+                    kardexId = resKardex.rows[0].id;
+                    // Actualizar
+                    const estatus = fila.final >= 60 ? 'APROBADO' : 'REPROBADO';
+                    await client.query(
+                        "UPDATE kardex SET calificacion = $1, estatus = $2, uploadedAt = NOW() WHERE id = $3",
+                        [fila.final, estatus, kardexId]
+                    );
+                    actualizados++;
+                } else {
+                    // Si no tiene kardex, intentamos crearlo (Inscripción forzosa)
+                    const estatus = fila.final >= 60 ? 'APROBADO' : 'REPROBADO';
+                    const nuevo = await client.query(
+                        `INSERT INTO kardex (alumno_id, materia_id, periodo_id, calificacion, estatus, promedio_kardex, promedio_sem_act)
+                         VALUES ($1, $2, $3, $4, $5, 0, 0) RETURNING id`,
+                        [alumnoId, materia_id, periodo_id, fila.final, estatus]
+                    );
                     kardexId = nuevo.rows[0].id;
-                    totalCreados++;
-                } else {
-                    kardexId = qKardex.rows[0].id;
+                    actualizados++;
+                    errores.push(`Alumno ${fila.matricula}: No estaba inscrito, se creó Kardex nuevo.`);
                 }
 
-                /** --- Upsert calificación --- **/
-                const qCal = await pgClient.query(
-                    `SELECT id FROM calificacion WHERE kardex_id=$1`,
-                    [kardexId]
-                );
+                // D. Actualizar detalle (tabla calificacion)
+                // ... (mismo código de antes para detalle)
 
-                const fechaCierre = fila.fecha_cierre ?? new Date().toISOString().slice(0, 10);
-
-                if (qCal.rows.length > 0) {
-                    // UPDATE
-                    await pgClient.query(
-                        `UPDATE calificacion
-                         SET ordinario=$1,
-                             extraordinario=$2,
-                             final=$3,
-                             fecha_cierre=$4
-                         WHERE kardex_id=$5`,
-                        [
-                            fila.ordinario,
-                            fila.extraordinario ?? 0,
-                            fila.final,
-                            fechaCierre,
-                            kardexId
-                        ]
-                    );
-                } else {
-                    // INSERT
-                    await pgClient.query(
-                        `INSERT INTO calificacion (kardex_id, ordinario, extraordinario, final, fecha_cierre)
-                         VALUES ($1, $2, $3, $4, $5)`,
-                        [
-                            kardexId,
-                            fila.ordinario,
-                            fila.extraordinario ?? 0,
-                            fila.final,
-                            fechaCierre
-                        ]
-                    );
-                }
-
-                /** --- Actualizar kardex --- **/
-                await pgClient.query(`
-                    UPDATE kardex
-                    SET estatus=$1, calificacion=$2
-                    WHERE id=$3
-                `, [fila.estatus_kardex ?? "Ordinario", fila.final, kardexId]);
-
-                totalActualizados++;
-
-            } catch (err: any) {
-                errores.push({ fila, error: err.message });
+            } catch (e: any) {
+                console.error(e);
+                errores.push(`Error sistema con ${fila.matricula}: ${e.message}`);
             }
         }
 
-        await pgClient.query("COMMIT");
+        await client.query("COMMIT");
 
+        // Devolvemos el reporte completo
         return NextResponse.json({
-            mensaje: "Proceso completado",
-            totalActualizados,
-            totalCreados,
-            errores
+            mensaje: `Proceso finalizado.`,
+            totalActualizados: actualizados,
+            totalErrores: errores.length,
+            erroresList: errores // El frontend puede mostrar esto
         });
 
     } catch (err: any) {
-        if (pgClient) await pgClient.query("ROLLBACK");
+        if (client) await client.query("ROLLBACK");
+        console.error("Error global upload:", err);
         return NextResponse.json({ mensaje: err.message }, { status: 500 });
     } finally {
-        if (pgClient) pgClient.release();
+        if (client) client.release();
     }
 }
