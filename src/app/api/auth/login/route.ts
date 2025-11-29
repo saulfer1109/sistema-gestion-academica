@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
         profesorId: user.profesor_id,
         email: user.email,
         nombre: `${user.nombre} ${user.apellido_paterno}`,
-        roles: roles // Enviamos los roles ya normalizados al front
+        roles: roles 
       }
     });
 

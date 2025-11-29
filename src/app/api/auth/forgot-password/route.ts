@@ -51,11 +51,10 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. ENVÍO DE CORREO (Simulación)
-    // Aquí es donde usarías 'resend', 'nodemailer' o el servicio de Supabase si usaras su Auth nativo.
     // Como usas Auth custom, lo simulamos en consola:
     console.log("========================================");
-    console.log(`📧 ENVIANDO CORREO A: ${email}`);
-    console.log(`🔑 CÓDIGO DE RECUPERACIÓN: ${codigo}`);
+    console.log(`ENVIANDO CORREO A: ${email}`);
+    console.log(`CÓDIGO DE RECUPERACIÓN: ${codigo}`);
     console.log("========================================");
 
     return NextResponse.json({ message: "Código enviado correctamente." });
