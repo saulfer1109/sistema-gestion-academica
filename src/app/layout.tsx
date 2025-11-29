@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Inter, Roboto } from "next/font/google";
 import Image from "next/image";
-import Link from "next/link";
 import "./globals.css";
 import NavBar from "../components/NavBar";
 
@@ -28,7 +27,6 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
   
   const pathname = usePathname();
@@ -52,14 +50,6 @@ export default function RootLayout({
     }
   }, []);
 
-  // 2️⃣ Logout logic
-  const handleLogout = () => {
-    if (typeof window !== 'undefined') {
-        localStorage.removeItem('user');
-        router.push('/');
-    }
-  };
-
   return (
     <html lang="es">
       <body className={inter.className}>
@@ -77,7 +67,7 @@ export default function RootLayout({
 
             {shouldRenderNavbar && (
               <>
-                {/* --- HEADER BLANCO (CON ICONO DE USUARIO) --- */}
+                {/* --- HEADER BLANCO (SOLO LOGO) --- */}
                 <header className="bg-white shadow-sm relative z-20">
                   <div className="max-w-7xl mx-auto px-8 py-6 flex items-center justify-between">
                     
@@ -113,97 +103,8 @@ export default function RootLayout({
                       </div>
                     </div>
 
-                    {/* Íconos Derecha */}
-                    <div className="flex items-center gap-6">
-                      
-                      {/* Notificaciones */}
-                      <button className="p-2 rounded-full hover:bg-gray-100 transition text-[#16469B]">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-                          <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-                        </svg>
-                      </button>
-
-                      {/* --- PERFIL --- */}
-                      <div 
-                        className="relative"
-                        tabIndex={0}
-                        onBlur={(e) => {
-                            if (!e.currentTarget.contains(e.relatedTarget)) {
-                                setTimeout(() => setIsProfileOpen(false), 150);
-                            }
-                        }}
-                      >
-                        <button
-                          onClick={() => setIsProfileOpen(!isProfileOpen)}
-                          className={`p-2 rounded-full transition text-[#16469B] ${isProfileOpen ? "bg-gray-100" : "hover:bg-gray-100"}`}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-                            <circle cx="12" cy="7" r="4" />
-                          </svg>
-                        </button>
-
-                        {/* ⬇️ DROPDOWN DE PERFIL PERSONALIZADO */}
-                        {isProfileOpen && (
-                          <div className="absolute right-0 mt-2 w-[380px] bg-white rounded-lg shadow-2xl z-50 border border-gray-200 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-                            <div className="flex">
-                                <div className="flex-1">
-                                    {/* Info Superior */}
-                                    <div className="p-5 pb-3">
-                                        <div className="flex gap-4 items-start">
-                                            {/* Avatar Dorado */}
-                                            <div className="mt-1 w-10 h-10 rounded-full bg-[#E6B10F] flex-shrink-0 border-2 border-white shadow-sm"></div>
-                                            
-                                            {/* Textos */}
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex justify-between items-start">
-                                                    <p className="font-bold text-[#16469B] text-base leading-tight">
-                                                        Prof. {userData?.nombre || "Usuario"}
-                                                    </p>
-                                                    {/* Botón Cerrar Sesión */}
-                                                    <button 
-                                                        onClick={handleLogout}
-                                                        className="text-red-600 text-xs hover:underline font-medium whitespace-nowrap ml-3 mt-0.5"
-                                                    >
-                                                        Cerrar Sesión
-                                                    </button>
-                                                </div>
-                                                
-                                                <p className="text-xs text-gray-600 mt-1 font-medium">
-                                                    {userData?.email || "correo@unison.mx"}
-                                                </p>
-                                                <p className="text-xs text-gray-500 mt-0.5">
-                                                    Grupo (clave)
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Separador */}
-                                    <div className="h-[1px] bg-[#16469B] mx-5 opacity-20"></div>
-
-                                    {/* Info Inferior / Configuración */}
-                                    <div className="px-5 py-4 bg-white">
-                                        <p className="text-xs text-gray-500 mb-3 leading-relaxed">
-                                            Maestro de tiempo completo Campus Hermosillo
-                                        </p>
-                                        
-                                        {/* ENLACE DE CONFIGURACIÓN */}
-                                        <Link 
-                                            href="/configuracion-perfil" 
-                                            className="block w-full text-left text-sm text-gray-700 hover:text-[#16469B] hover:bg-gray-50 p-2 -ml-2 rounded transition-colors font-medium"
-                                            onClick={() => setIsProfileOpen(false)}
-                                        >
-                                            Configuración de perfil
-                                        </Link>
-                                    </div>
-                                </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                    {/* 🟢 SE ELIMINARON LOS ÍCONOS DE USUARIO Y CAMPANA DE AQUÍ */}
+                    
                   </div>
                 </header>
 
