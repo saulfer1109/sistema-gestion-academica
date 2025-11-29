@@ -26,6 +26,7 @@ export default function NavBar({ className, azul, dorado }: Props) {
   // Estado para controlar qué menú está abierto
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
+  // 🟢 MODIFICACIÓN: Se eliminaron "Alumnos" y "Desempeño"
   const menuItems = [
     { href: "/inicio", label: "Inicio", id: "inicio" },
     {
@@ -37,11 +38,8 @@ export default function NavBar({ className, azul, dorado }: Props) {
         { href: "/calificaciones/consultar-calificaciones", label: "Consultar calificaciones" },
       ],
     },
-    { href: "#", label: "Alumnos", id: "alumnos", disabled: true },
     { href: "/reportes", label: "Reportes Académicos", id: "reportes" },
-    // ✅ "Alertas por Faltas" ACTIVADO (eliminé disabled: true)
     { href: "/alertas-faltas", label: "Alertas por Faltas", id: "alertas" },
-    { href: "#", label: "Desempeño", id: "desempeno", disabled: true },
   ];
 
   const handleMenuClick = (id: string, hasDropdown: boolean) => {
@@ -62,18 +60,19 @@ export default function NavBar({ className, azul, dorado }: Props) {
         {/* --- MENÚ PRINCIPAL --- */}
         <ul className="flex justify-start gap-8 w-full">
           {menuItems.map((item) => {
+            // @ts-ignore - Ignoramos error de tipado si item no tiene dropdown
             const hasDropdown = item.dropdown && item.dropdown.length > 0;
+            
             const isActive =
               pathname === item.href ||
               pathname.startsWith(item.href + "/") ||
+              // @ts-ignore
               (hasDropdown && item.dropdown.some(sub => pathname.startsWith(sub.href)));
 
             const isMenuOpen = openDropdown === item.id;
             
             // Estilos condicionales
-            const textColorClass = item.disabled
-                ? "text-white/70 cursor-not-allowed"
-                : (isActive || isMenuOpen)
+            const textColorClass = (isActive || isMenuOpen)
                     ? `text-[${azul}]` // Color activo (azul)
                     : "text-white hover:text-black"; // Color inactivo (blanco)
 
@@ -90,12 +89,12 @@ export default function NavBar({ className, azul, dorado }: Props) {
                 tabIndex={0}
               >
                 <a
-                  href={item.disabled ? undefined : item.href}
+                  href={item.href}
                   onClick={(e) => {
                     if (hasDropdown) {
                       e.preventDefault();
                       handleMenuClick(item.id, true);
-                    } else if (!item.disabled) {
+                    } else {
                        handleMenuClick(item.id, false);
                     }
                   }}
@@ -110,6 +109,7 @@ export default function NavBar({ className, azul, dorado }: Props) {
                   <div
                     className="absolute top-full left-0 w-64 bg-white shadow-xl z-50 rounded-b-lg overflow-hidden border-t-0 border border-gray-200"
                   >
+                    {/* @ts-ignore */}
                     {item.dropdown.map((subItem) => (
                       <Link
                         key={subItem.label}
@@ -130,8 +130,6 @@ export default function NavBar({ className, azul, dorado }: Props) {
             );
           })}
         </ul>
-        
-        {/* Se eliminó el bloque de usuario de aquí */}
       </div>
     </nav>
   );

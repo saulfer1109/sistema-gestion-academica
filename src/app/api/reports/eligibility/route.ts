@@ -1,37 +1,48 @@
-// src/app/api/reports/eligibility/route.ts
-
 import { NextRequest, NextResponse } from "next/server";
-import { getEligibleStudents } from "@/app/lib/reports"; 
+import { pool } from "@/app/lib/db";
 
 type ReportType = 'Practicas Profesionales' | 'Servicio Social';
 
-/**
- * PR6.4: Valida el tipo de reporte.
- * Llama a PR6.6 para obtener los datos.
- */
 export async function GET(req: NextRequest) {
     try {
         const { searchParams } = new URL(req.url);
         const reportType = searchParams.get('type') as ReportType | null;
 
-        // PR6.4: Validación del tipo de reporte
+        // Validación del tipo de reporte
         if (!reportType || (reportType !== 'Practicas Profesionales' && reportType !== 'Servicio Social')) {
             return NextResponse.json(
-                { error: "Parámetro 'type' (tipo de reporte) inválido. Debe ser 'Practicas Profesionales' o 'Servicio Social'." },
+                { error: "Parámetro 'type' inválido." },
                 { status: 400 }
             );
         }
 
-        // PR6.6: Consultar alumnos
-        const students = await getEligibleStudents(reportType);
+        // Definir porcentaje según el tipo (Ejemplo: 70% para ambos, ajustable)
+        const porcentajeRequerido = 0.70;
 
-        // PR6.7: Devolver la lista
-        return NextResponse.json(students);
+ const query = `
+            SELECT 
+                a.matricula,
+                a.expediente,
+                -- 🟢 CAMBIO: Apellidos primero
+                TRIM(a.apellido_paterno || ' ' || COALESCE(a.apellido_materno, '') || ' ' || a.nombre) AS nombre_completo,
+                a.correo,
+                a.total_creditos AS creditos_aprobados,
+                a.estado_academico,
+                pe.nombre AS plan_estudio_nombre
+            FROM alumno a
+            JOIN plan_estudio pe ON a.plan_estudio_id = pe.id
+            WHERE 
+                CAST(a.total_creditos AS NUMERIC) >= (CAST(pe.total_creditos AS NUMERIC) * $1)
+                AND a.estado_academico = 'ACTIVO'
+            -- Ordenar alfabéticamente
+            ORDER BY a.apellido_paterno ASC, a.apellido_materno ASC, a.nombre ASC;
+        `;
+
+        const result = await pool.query(query, [porcentajeRequerido]);
+        return NextResponse.json(result.rows);
         
     } catch (error) {
-        return NextResponse.json(
-            { error: "Error interno al procesar el reporte de elegibilidad." },
-            { status: 500 }
-        );
+        console.error("Error en reporte:", error);
+        return NextResponse.json({ error: "Error interno." }, { status: 500 });
     }
 }
