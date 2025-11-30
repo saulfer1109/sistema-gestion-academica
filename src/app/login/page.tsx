@@ -220,7 +220,7 @@ const SuccessView = ({ onViewChange }: ViewProps) => {
 
 
 // =================================================================
-// 👑 COMPONENTE PRINCIPAL (LOGIN PAGE) - LÓGICA CORREGIDA
+// COMPONENTE PRINCIPAL (LOGIN PAGE) 
 // =================================================================
 
 export default function LoginPage() {
@@ -249,7 +249,7 @@ export default function LoginPage() {
             const trimmedEmail = email.trim().toLowerCase();
             const trimmedPassword = password.trim();
 
-            // 🚀 LLAMADA AL BACKEND REAL
+            // LLAMADA AL BACKEND REAL
             const res = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -266,10 +266,10 @@ export default function LoginPage() {
                 throw new Error(data.error || 'Error al iniciar sesión');
             }
 
-            // ✅ Login Exitoso
+            // Login Exitoso
             console.log("Usuario autenticado:", data.user);
             
-            // 🔴 IMPORTANTE: Guardamos al usuario en LocalStorage para que el Dashboard lo lea
+            // IMPORTANTE: Guardamos al usuario en LocalStorage para que el Dashboard lo lea
             localStorage.setItem('user', JSON.stringify(data.user));
 
             router.push('/inicio'); // Redirección
@@ -300,7 +300,7 @@ export default function LoginPage() {
                                 label="Correo institucional:"
                                 value={email}
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
-                                disabled={isLoading} // Deshabilitar durante carga
+                                disabled={isLoading} 
                             />
 
                             <InputField
@@ -308,7 +308,7 @@ export default function LoginPage() {
                                 type="password"
                                 value={password}
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
-                                disabled={isLoading} // Deshabilitar durante carga
+                                disabled={isLoading} 
                             />
 
                             {error && (

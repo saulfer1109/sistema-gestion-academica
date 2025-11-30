@@ -6,7 +6,7 @@ import Checkbox from "@/components/ui/Checkbox";
 import CardMateria from "@/components/ui/CardMateria";
 import dynamic from "next/dynamic";
 
-// ⚠️ CORRECCIÓN ROBUSTA:
+// CORRECCIÓN ROBUSTA:
 // 1. Usamos .then para devolver 'default as any' (satisface la carga dinámica).
 // 2. Casteamos el resultado final a 'any' (satisface el uso en el JSX).
 const DatePicker = dynamic(

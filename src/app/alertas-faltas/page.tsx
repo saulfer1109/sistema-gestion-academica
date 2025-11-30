@@ -52,7 +52,7 @@ export default function AlertasFaltasPage() {
   useEffect(() => {
     const fetchGrupos = async () => {
       const storedUser = localStorage.getItem('user');
-      if (!storedUser) return; // O redirigir
+      if (!storedUser) return;
 
       try {
         const user = JSON.parse(storedUser);
@@ -90,7 +90,7 @@ export default function AlertasFaltasPage() {
       }
       const apiData = await res.json();
       
-      // 🟢 MAPEO DE DATOS: Aseguramos que faltasPermitidas tenga valor (14)
+      // MAPEO DE DATOS: Aseguramos que faltasPermitidas tenga valor (14)
       const data: AlumnoFaltas[] = apiData.map((item: any) => ({
         id: item.id,
         expediente: item.expediente,
@@ -121,7 +121,7 @@ export default function AlertasFaltasPage() {
         body: JSON.stringify({
           alumnoId: selectedAlumno.id,
           grupoId: grupoId,
-          profesorId: profesorId, // Enviamos el ID del profesor real
+          profesorId: profesorId, 
           cantidad: justificarCount,
           motivo: motivo
         })
@@ -225,7 +225,7 @@ export default function AlertasFaltasPage() {
                         {alumno.faltas}
                       </div>
 
-                      {/* 🟢 CORRECCIÓN VISUAL: Ahora mostrará X/14 correctamente */}
+                      
                       <div className="px-4 py-3 text-sm text-gray-900">
                         {alumno.faltas}/{alumno.faltasPermitidas}
                       </div>

@@ -9,7 +9,7 @@ export interface AsistenciaDetectada {
 interface StudentExcelRow {
     expediente: string;
     nombre?: string;
-    asistencias: AsistenciaDetectada[]; // 🟢 Nuevo campo
+    asistencias: AsistenciaDetectada[]; 
 }
 
 export const parseStudentsFile = (buffer: Buffer): StudentExcelRow[] => {
@@ -74,7 +74,7 @@ export const parseStudentsFile = (buffer: Buffer): StudentExcelRow[] => {
             const expediente = String(row[expedienteKey]).trim();
             const asistencias: AsistenciaDetectada[] = [];
 
-            // 🟢 Revisar las columnas de fecha detectadas
+            //  Revisar las columnas de fecha detectadas
             dateColumns.forEach(col => {
                 // Buscamos el valor usando el nombre original del header
                 const headerName = headers[col.index];

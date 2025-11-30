@@ -39,7 +39,7 @@ function CursoContent() {
   const [error, setError] = useState("");
   const [profesorId, setProfesorId] = useState<string>("");
   
-  // 🟢 Estado para guardar los detalles del encabezado
+  // Estado para guardar los detalles del encabezado
   const [groupDetails, setGroupDetails] = useState<GroupDetails | null>(null);
 
   // 1. Fetch de Alumnos (Existente)
@@ -81,7 +81,7 @@ function CursoContent() {
     }
   };
 
-  // 🟢 2. Nuevo Fetch para Detalles del Grupo (Encabezado)
+  // 2. Nuevo Fetch para Detalles del Grupo (Encabezado)
   const fetchGroupDetails = async () => {
     try {
       const res = await fetch(`/api/groups/${grupoId}/details`);
@@ -107,7 +107,7 @@ function CursoContent() {
     fetchAlumnos();
   };
 
-  // 🟢 3. Función de Descarga Actualizada (Con Encabezado)
+  // 3. Función de Descarga Actualizada (Con Encabezado)
   const handleDescargarLista = () => {
     if (alumnos.length === 0) return;
 

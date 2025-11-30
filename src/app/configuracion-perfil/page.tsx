@@ -34,24 +34,24 @@ export default function PerfilPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPhotoPending, setIsPhotoPending] = useState(false);
 
-  // 🟢 ESTADOS DEL MODAL DE ÉXITO
+  // ESTADOS DEL MODAL DE ÉXITO
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
 
-  // 👤 ESTADO DEL PERFIL (Datos del usuario)
+  //  ESTADO DEL PERFIL (Datos del usuario)
   const [userProfile, setUserProfile] = useState(InitialUserProfile);
 
   // Edición de Teléfono
   const [isEditingPhone, setIsEditingPhone] = useState(false);
   const [draftPhone, setDraftPhone] = useState(""); // Se inicializa en el useEffect
 
-  // 🔒 Edición de Contraseña
+  // Edición de Contraseña
   const [isEditingPassword, setIsEditingPassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  // 1️⃣ EFECTO: CARGAR DATOS DEL USUARIO LOGUEADO
+  // 1️EFECTO: CARGAR DATOS DEL USUARIO LOGUEADO
   useEffect(() => {
     if (typeof window !== "undefined") {
       const storedUser = localStorage.getItem("user");
@@ -158,7 +158,7 @@ export default function PerfilPage() {
     setIsEditingPassword(false);
   };
 
-  // 🚨 RENDERIZADO CONDICIONAL 1: Ajuste de Imagen
+  // RENDERIZADO CONDICIONAL 1: Ajuste de Imagen
   if (tempFile) {
     return (
       <ImageAdjustmentPage
@@ -188,10 +188,10 @@ export default function PerfilPage() {
           message={successMessage}
       />
 
-      {/* ℹ️ Contenedor de Información Personal */}
+      {/* Contenedor de Información Personal */}
       <div className="flex flex-col md:flex-row gap-12 items-start">
 
-        {/* 👤 Foto de Perfil */}
+        {/* Foto de Perfil */}
         <div className="flex flex-col items-center w-full md:w-auto">
           <div
             className="w-40 h-40 rounded-full flex items-center justify-center mb-2 shadow-md"
@@ -222,7 +222,7 @@ export default function PerfilPage() {
           </button>
         </div>
 
-        {/* 📋 Detalles de Información Personal (DINÁMICO) */}
+        {/*Detalles de Información Personal (DINÁMICO) */}
         <div className="flex-grow w-full md:w-auto">
           <SectionTitle title="Información Personal" />
           <div className="space-y-1 text-gray-700 font-sans pl-2">
@@ -271,7 +271,7 @@ export default function PerfilPage() {
 
       <hr className="my-8" />
 
-      {/* 🔒 Seguridad de Cuenta */}
+      {/*Seguridad de Cuenta */}
       <div className="mt-8">
         <SectionTitle title="Seguridad de Cuenta" />
         <div className="space-y-2 text-gray-700 font-sans pl-2">
